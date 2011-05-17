@@ -29,16 +29,19 @@
                    get-style-list get-padding)
           (super on-local-char on-paint))
       (class/c
-        (init [vim-emulation? any/c])
         [on-paint on-paint/c]
         [on-local-char on-local-char/c]
         (override [on-paint on-paint/c]
                   [on-local-char on-local-char/c])
+        [vim? (->m boolean?)]
+        [toggle-vim! (->m void?)]
         [set-mode! (->m mode/c void?)]
         [get-mode  (->m mode/c)]))])
 
 (define vim-emulation<%>
   (interface ()
+    vim? 
+    toggle-vim!
     set-mode!
     get-mode))
 
@@ -46,8 +49,6 @@
   (mixin (text:basic<%>) (vim-emulation<%>)
 
     ;; ==== public state & accessors ====
-    (init-field [vim-emulation? #t])
-
     (inherit invalidate-bitmap-cache)
 
     ;; vim-style mode 
@@ -61,7 +62,15 @@
     (define/public-final (get-mode)
       mode)
 
+    (define/public-final (vim?) vim-emulation?)
+
+    (define/public-final (toggle-vim!)
+      (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
+      (set! vim-emulation? (not vim-emulation?)))
+
     ;; ==== private state ====
+    (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
+
     (define mode-padding 3)
     (define old-clipping #f)
 
