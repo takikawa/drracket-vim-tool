@@ -28,6 +28,6 @@
 (define (phase1) (void))
 (define (phase2) (void))
 
-(preferences:set-default 'drracket:vim-emulation? #f (lambda (x) (boolean? x)))
+(preferences:set-default 'drracket:vim-emulation? #f boolean?)
 (drracket:get/extend:extend-definitions-text vim-emulation-mixin)
 (drracket:get/extend:extend-unit-frame vim-frame-mixin)
