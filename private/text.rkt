@@ -93,11 +93,13 @@
         (super on-local-char event)))
 
     (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
-      (if vim-emulation?
+      (if (and vim-emulation?
+               ;; in command mode, we don't draw anything special
+               (not (eq? mode 'command)))
         (begin
           (save-dc-state dc)
           (setup-dc dc)
-          (if before?
+          (if (and before?)
             (fix-clipping dc left top right bottom dx dy)
             (begin
               ;; don't clip out mode line for *our* drawing
@@ -166,10 +168,11 @@
     (define/private (draw-mode-line dc left top right bottom dx dy)
       (define-values (x y width height padding)
         (get-mode-dimensions dc left top right bottom dx dy))
-      (if (eq? mode 'command)
-          (void)
-          ;(send dc draw-rectangle (+ x padding) (+ y padding) width height)
-          (send dc draw-text (mode-string) (+ x padding) (+ y padding))))
+      (cond [(eq? mode 'command) (void)]
+            [else
+              (send dc set-pen "white" 0 'transparent)
+              (send dc draw-rectangle (+ x padding) (+ y padding) width height)
+              (send dc draw-text (mode-string) (+ x padding) (+ y padding))]))
 
     ;; get the dimensions for how to draw a mode line
     ;; (is-a?/c dc<%>) real? real? real? real? real? real? ->
