@@ -2,9 +2,6 @@
 
 (require framework)
 
-(define mode/c
-  (one-of/c 'command 'insert 'visual 'visual-line))
-
 (define on-local-char/c
   (->m (is-a?/c key-event%) void?))
 
@@ -34,36 +31,16 @@
         (override [on-paint on-paint/c]
                   [on-local-char on-local-char/c])
         [vim? (->m boolean?)]
-        [toggle-vim! (->m void?)]
-        [set-mode! (->m mode/c void?)]
-        [get-mode  (->m mode/c)]))])
+        [toggle-vim! (->m void?)]))])
 
 (define vim-emulation<%>
-  (interface ()
-    vim? 
-    toggle-vim!
-    set-mode!
-    get-mode))
+  (interface () vim?  toggle-vim!))
 
 (define vim-emulation-mixin
-  (mixin (text:basic<%>) (vim-emulation<%>)
+  (mixin (text:basic<%> text:searching<%>) (vim-emulation<%>)
 
     ;; ==== public state & accessors ====
     (inherit invalidate-bitmap-cache)
-
-    ;; vim-style mode 
-    ;; (one-of/c 'command 'insert 'visual)
-    (define mode 'command)
-
-    (define/public-final (set-mode! new-mode)
-      (set! mode new-mode)
-      (when (eq? new-mode 'visual-line)
-        (move-position 'left #f 'line)
-        (move-position 'right #t 'line))
-      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
-
-    (define/public-final (get-mode)
-      mode)
 
     (define/public-final (vim?) vim-emulation?)
 
@@ -71,7 +48,34 @@
       (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
       (set! vim-emulation? (not vim-emulation?)))
 
-    ;; ==== private state ====
+    ;;; Private state
+
+    ;; vim-style mode 
+    ;; Editing modes: 'command 'insert 'visual
+    ;; Bookkeeping: 'search
+    (define mode 'command)
+    
+    ;; current search string as a list of chars
+    (define search-string '())
+    
+    ;; listof<char?> -> void?
+    (define/private (set-search-string! loc)
+      (set! search-string loc)
+      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
+
+    ;; -> string?
+    (define/private (get-search-string)
+      (list->string (reverse search-string)))
+
+    (define/private (set-mode! new-mode)
+      (set! mode new-mode)
+      (when (eq? new-mode 'visual-line)
+        (move-position 'left #f 'line)
+        (move-position 'right #t 'line))
+      (when (eq? new-mode 'search)
+        (set-search-string! '()))
+      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
+
     (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
 
     (define mode-padding 3)
@@ -93,6 +97,7 @@
               [(eq? mode 'insert)  (do-insert event)]
               [(eq? mode 'visual)  (do-visual event)]
               [(eq? mode 'visual-line) (do-visual-line event)]
+              [(eq? mode 'search) (do-search event)]
               [else (error "Unimplemented")])
         (super on-local-char event)))
 
@@ -202,7 +207,9 @@
     ;; mode string for mode line
     ;; -> string?
     (define/private (mode-string)
-      (string-upcase (format "-- ~a --" (symbol->string mode))))
+      (match mode
+        ['search (get-search-string)]
+        [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
 
     ;; handles a multi-character command
     ;; (is-a?/c key-event%) -> void?
@@ -294,6 +301,9 @@
         [#\u (undo)]
         [#\r (and (send event get-control-down)
                   (redo))]
+        ;; search
+        [#\/ (set-mode! 'search)]
+        [#\n (do-next-search)]
         [_   (void)]))
     
     ;; (is-a?/c key-event%) -> void?
@@ -322,6 +332,30 @@
         ;; re-indent on tab
         [#\tab (super on-local-char event)]
         [_   (void)]))
+    
+    (inherit set-searching-state
+             get-replace-search-hit
+             set-replace-start)
+    
+    ;; (is-a?/c key-event%) -> void?
+    (define/private (do-search event)
+      (define key (send event get-key-code))
+      (match key
+        ['escape (set-mode! 'command)]
+        [#\return (set-searching-state (get-search-string) #f #f)
+                  (do-next-search)
+                  (set-mode! 'command)]
+        [(? char?) (set-search-string! (cons key search-string))]
+        [_ (void)]))
+    
+    (define/private (do-next-search [start-at-next-word #t])
+      (when start-at-next-word
+        (move-position 'right #f 'word))
+      (define pos-box (box 0))
+      (get-position pos-box)
+      (set-replace-start (unbox pos-box))
+      (when (get-replace-search-hit)
+        (set-position (get-replace-search-hit))))
 
     ;; -> void?
     (define/private (delete-until-end)
