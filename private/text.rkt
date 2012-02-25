@@ -3,7 +3,7 @@
 (require framework)
 
 (define mode/c
-  (one-of/c 'command 'insert 'visual))
+  (one-of/c 'command 'insert 'visual 'visual-line))
 
 (define on-local-char/c
   (->m (is-a?/c key-event%) void?))
@@ -57,6 +57,9 @@
 
     (define/public-final (set-mode! new-mode)
       (set! mode new-mode)
+      (when (eq? new-mode 'visual-line)
+        (move-position 'left #f 'line)
+        (move-position 'right #t 'line))
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
 
     (define/public-final (get-mode)
@@ -89,6 +92,7 @@
         (cond [(eq? mode 'command) (do-command event)]
               [(eq? mode 'insert)  (do-insert event)]
               [(eq? mode 'visual)  (do-visual event)]
+              [(eq? mode 'visual-line) (do-visual-line event)]
               [else (error "Unimplemented")])
         (super on-local-char event)))
 
@@ -272,6 +276,7 @@
                     (set-mode! 'insert))]
         ;; modes
         [#\v (set-mode! 'visual)]
+        [#\V (set-mode! 'visual-line)]
         ;; movement
         [#\f (and (send event get-control-down)
                   (move-position 'down #f 'page))]
@@ -290,9 +295,18 @@
         [#\r (and (send event get-control-down)
                   (redo))]
         [_   (void)]))
-
+    
     ;; (is-a?/c key-event%) -> void?
     (define/private (do-visual event)
+      (match (send event get-key-code)
+        [#\h (move-position 'left #t)]
+        [#\j (move-position 'down #t)]
+        [#\k (move-position 'up #t)]
+        [#\l (move-position 'right #t)]
+        [_ (do-visual-line event)]))
+
+    ;; (is-a?/c key-event%) -> void?
+    (define/private (do-visual-line event)
       (match (send event get-key-code)
         ;; modes
         ['escape (set-mode! 'command)]
@@ -303,10 +317,8 @@
         [#\p (begin (paste)
                     (set-mode! 'command))]
         ;; visual movement
-        [#\h (move-position 'left #t)]
-        [#\j (move-position 'down #t)]
-        [#\k (move-position 'up #t)]
-        [#\l (move-position 'right #t)]
+        [#\j (visual-line-move 'down)]
+        [#\k (visual-line-move 'up)]
         ;; re-indent on tab
         [#\tab (super on-local-char event)]
         [_   (void)]))
@@ -318,6 +330,12 @@
              [line (position-line (unbox b))]
              [eol (line-end-position line)])
         (kill 0 (unbox b) eol)))
+    
+    ;; move selection by line
+    ;; : (one-of/c 'down 'up) -> void?
+    (define/private (visual-line-move dir)
+      (move-position dir #t)
+      (move-position 'right #t 'line))
 
     ;; copy selection
     (define/private (visual-copy)
