@@ -85,21 +85,28 @@
     (define-struct dc-state (pen font fg))
     (define saved-dc-state #f)
     
-    ;; continuation into queued command handler
-    (define command-continuation #f)
+    ;; continuation into key handling routine
+    (define key-cont #f)
 
     ;; ==== overrides ====
     ;; override character handling and dispatch based on mode
     ;; is-a?/c key-event% -> void?
     (define/override (on-local-char event)
       (if vim-emulation?
-        (cond [(eq? mode 'command) (do-command event)]
-              [(eq? mode 'insert)  (do-insert event)]
-              [(eq? mode 'visual)  (do-visual event)]
-              [(eq? mode 'visual-line) (do-visual-line event)]
-              [(eq? mode 'search) (do-search event)]
-              [else (error "Unimplemented")])
-        (super on-local-char event)))
+          (if key-cont
+              (key-cont event)
+              (call-with-continuation-prompt
+               (λ ()
+                 (cond [(eq? mode 'command) (do-command event)]
+                       [(eq? mode 'insert)  (do-insert event)]
+                       [(eq? mode 'visual)  (do-visual event)]
+                       [(eq? mode 'visual-line) (do-visual-line event)]
+                       [(eq? mode 'search) (do-search event)]
+                       [else (error "Unimplemented mode")])
+                 (clear-cont!))
+               (default-continuation-prompt-tag)
+               (λ (k) (set! key-cont k))))
+          (super on-local-char event)))
 
     (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
       (if (and vim-emulation?
@@ -210,18 +217,24 @@
       (match mode
         ['search (get-search-string)]
         [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
+    
+    ;; provide the next key later
+    (define/private (get-next-key)
+      (call-with-composable-continuation
+       (λ (k)
+         (abort-current-continuation
+          (default-continuation-prompt-tag)
+          (λ (v) (k v))))))
 
     ;; handles a multi-character command
     ;; (is-a?/c key-event%) -> void?
     (define/private (do-command event)
-      (let/cc exit
-        (let ([key (send event get-key-code)])
-          (cond [(eq? key 'escape) (clear-command)]
-                [command-continuation (command-continuation event)]
-                [else (match (send event get-key-code)
-                        [#\d (do-delete (suspend exit))]
-                        [#\y (do-yank (suspend exit))]
-                        [_   (do-simple-command event)])]))))
+      (define key (send event get-key-code))
+      (match key
+        ['escape (clear-cont!)]
+        [#\d (do-delete (get-next-key))]
+        [#\y (do-yank (get-next-key))]
+        [_   (do-simple-command event)]))
 
     ;; handle deletes
     (define/private (do-delete event)
@@ -252,18 +265,9 @@
         (find-wordbreak start end 'selection)
         (f (unbox start) (unbox end))))
 
-    ;; suspend the current key handling and wait
-    (define/private (suspend exit)
-      (let/cc k
-        (set! command-continuation
-          (lambda (arg)
-            (set! command-continuation #f)
-            (k arg)))
-        (exit (void))))
-
     ;; clear the command continuation
-    (define/private (clear-command)
-      (set! command-continuation #f))
+    (define/private (clear-cont!)
+      (set! key-cont #f))
 
     ;; (is-a?/c key-event%) -> void?
     (define/private (do-insert event)
