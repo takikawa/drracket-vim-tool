@@ -241,14 +241,16 @@
       (let ([deleter (lambda (s e) (send this kill 0 s e))])
         (match (send event get-key-code)
           [#\w (do-word deleter)]
-          [#\d (do-line deleter)])))
+          [#\d (do-line deleter)]
+          [_ (clear-cont!)])))
    
     ;; handle yanking
     (define/private (do-yank event)
       (let ([copier (lambda (s e) (send this copy #f 0 s e))])
         (match (send event get-key-code)
           [#\w (do-word copier)]
-          [#\y (do-line copier)])))
+          [#\y (do-line copier)]
+          [_ (clear-cont!)])))
 
     (define-syntax-rule (do-line f)
       (let ([b (box 0)])
