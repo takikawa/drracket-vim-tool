@@ -1,6 +1,7 @@
 #lang racket/gui
 
-(require framework)
+(require framework
+         racket/control)
 
 (define on-local-char/c
   (->m (is-a?/c key-event%) void?))
@@ -32,6 +33,10 @@
                   [on-local-char on-local-char/c])
         [vim? (->m boolean?)]
         [toggle-vim! (->m void?)]))])
+
+(define/contract vim-prompt-tag
+  (prompt/c (-> (is-a?/c key-event%) any))
+  (make-continuation-prompt-tag))
 
 (define vim-emulation<%>
   (interface () vim?  toggle-vim!))
@@ -95,7 +100,7 @@
       (if vim-emulation?
           (if key-cont
               (key-cont event)
-              (call-with-continuation-prompt
+              (call/prompt
                (λ ()
                  (cond [(eq? mode 'command) (do-command event)]
                        [(eq? mode 'insert)  (do-insert event)]
@@ -104,7 +109,7 @@
                        [(eq? mode 'search) (do-search event)]
                        [else (error "Unimplemented mode")])
                  (clear-cont!))
-               (default-continuation-prompt-tag)
+               vim-prompt-tag
                (λ (k) (set! key-cont k))))
           (super on-local-char event)))
 
@@ -220,11 +225,7 @@
     
     ;; provide the next key later
     (define/private (get-next-key)
-      (call-with-composable-continuation
-       (λ (k)
-         (abort-current-continuation
-          (default-continuation-prompt-tag)
-          (λ (v) (k v))))))
+      (call/comp (λ (k) (abort/cc vim-prompt-tag k))))
 
     ;; handles a multi-character command
     ;; (is-a?/c key-event%) -> void?
