@@ -35,7 +35,7 @@
         [toggle-vim! (->m void?)]))])
 
 (define/contract vim-prompt-tag
-  (prompt/c (-> (is-a?/c key-event%) any))
+  (prompt-tag/c (-> (is-a?/c key-event%) any))
   (make-continuation-prompt-tag))
 
 (define vim-emulation<%>
