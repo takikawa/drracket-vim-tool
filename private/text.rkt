@@ -302,6 +302,8 @@
         [#\l (move-position 'right)]
         [#\w (move-position 'right #f 'word)]
         [#\b (move-position 'right #f 'word)]
+        ;; editing
+        [#\J (delete-next-newline-and-whitespace)]
         ;; copy & paste & editing
         [#\D (delete-until-end)]
         [#\p (paste)]
@@ -363,6 +365,19 @@
       (set-replace-start (unbox pos-box))
       (when (get-replace-search-hit)
         (set-position (get-replace-search-hit))))
+
+    ;; deletes starting from the next newline and to the first
+    ;; non-whitespace character after that position
+    (define/private (delete-next-newline-and-whitespace)
+      (define newline-pos (send this find-newline))
+      (when newline-pos
+        (send this begin-edit-sequence)
+        (delete newline-pos)
+        (let loop ([char (send this get-character newline-pos)])
+          (when (char-whitespace? char)
+            (delete newline-pos)
+            (loop (send this get-character newline-pos))))
+        (send this end-edit-sequence)))
 
     ;; -> void?
     (define/private (delete-until-end)
