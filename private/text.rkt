@@ -228,7 +228,7 @@
     ;; -> string?
     (define/private (mode-string)
       (match mode
-        ['search (search-queue->string)]
+        ['search (string-append "/" (search-queue->string))]
         [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
     
     ;; provide the next key later
