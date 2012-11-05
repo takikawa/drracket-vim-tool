@@ -60,17 +60,25 @@
     ;; Bookkeeping: 'search
     (define mode 'command)
     
-    ;; current search string as a list of chars
-    (define search-string '())
+    ;; used to build up a search string
+    (define search-queue '())
+    ;; current search string (#f means none set)
+    (define search-string #f)
+
+    ;; helpers for searching
+    ;; char? -> void?
+    (define/private (enqueue-char! char)
+      (set! search-queue (cons char search-queue))
+      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
     
-    ;; listof<char?> -> void?
-    (define/private (set-search-string! loc)
-      (set! search-string loc)
+    ;; -> void?
+    (define/private (dequeue-char!)
+      (set! search-queue (cdr search-queue))
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
 
     ;; -> string?
-    (define/private (get-search-string)
-      (list->string (reverse search-string)))
+    (define/private (search-queue->string)
+      (list->string (reverse search-queue)))
 
     (define/private (set-mode! new-mode)
       (set! mode new-mode)
@@ -78,7 +86,7 @@
         (move-position 'left #f 'line)
         (move-position 'right #t 'line))
       (when (eq? new-mode 'search)
-        (set-search-string! '()))
+        (set! search-queue '()))
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
 
     (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
@@ -220,7 +228,7 @@
     ;; -> string?
     (define/private (mode-string)
       (match mode
-        ['search (get-search-string)]
+        ['search (search-queue->string)]
         [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
     
     ;; provide the next key later
@@ -342,7 +350,12 @@
         [#\tab (super on-local-char event)]
         [_   (void)]))
     
+
+    ;; searching
+    ;; TODO: - backwards search
+    ;;       - fix weird behavior when no more hits remain
     (inherit set-searching-state
+             get-search-hit-count
              get-replace-search-hit
              set-replace-start)
     
@@ -351,20 +364,28 @@
       (define key (send event get-key-code))
       (match key
         ['escape (set-mode! 'command)]
-        [#\return (set-searching-state (get-search-string) #f #f)
-                  (do-next-search)
-                  (set-mode! 'command)]
-        [(? char?) (set-search-string! (cons key search-string))]
+        [#\return
+         (define the-string (search-queue->string))
+         (set! search-string the-string)
+         (do-next-search)
+         (set-mode! 'command)]
+        [#\backspace (dequeue-char!)]
+        [(? char?) (enqueue-char! key)]
         [_ (void)]))
     
     (define/private (do-next-search [start-at-next-word #t])
-      (when start-at-next-word
-        (move-position 'right #f 'word))
-      (define pos-box (box 0))
-      (get-position pos-box)
-      (set-replace-start (unbox pos-box))
-      (when (get-replace-search-hit)
-        (set-position (get-replace-search-hit))))
+      (when search-string
+        ;; set the search state to get the next hit
+        (set-searching-state search-string #f #f)
+        (when start-at-next-word
+          (move-position 'right #f 'word))
+        (define pos-box (box 0))
+        (get-position pos-box)
+        (set-replace-start (unbox pos-box))
+        (when (get-replace-search-hit)
+          (set-position (get-replace-search-hit)))
+        ;; immediately clear the state to remove bubbles
+        (set-searching-state #f #f #f)))
 
     ;; deletes starting from the next newline and to the first
     ;; non-whitespace character after that position
