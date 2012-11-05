@@ -312,6 +312,7 @@
         [#\b (move-position 'right #f 'word)]
         ;; editing
         [#\J (delete-next-newline-and-whitespace)]
+        [#\x (delete)]
         ;; copy & paste & editing
         [#\D (delete-until-end)]
         [#\p (paste)]
