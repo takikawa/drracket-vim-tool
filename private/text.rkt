@@ -1,6 +1,7 @@
 #lang racket/gui
 
-(require framework
+(require data/queue
+         framework
          racket/control)
 
 (define on-local-char/c
@@ -61,24 +62,24 @@
     (define mode 'command)
     
     ;; used to build up a search string
-    (define search-queue '())
+    (define search-queue (make-queue))
     ;; current search string (#f means none set)
     (define search-string #f)
 
     ;; helpers for searching
     ;; char? -> void?
     (define/private (enqueue-char! char)
-      (set! search-queue (cons char search-queue))
+      (enqueue-front! search-queue char)
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
     
     ;; -> void?
     (define/private (dequeue-char!)
-      (set! search-queue (cdr search-queue))
+      (dequeue! search-queue)
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
 
     ;; -> string?
     (define/private (search-queue->string)
-      (list->string (reverse search-queue)))
+      (list->string (reverse (queue->list search-queue))))
 
     (define/private (set-mode! new-mode)
       (set! mode new-mode)
@@ -86,7 +87,7 @@
         (move-position 'left #f 'line)
         (move-position 'right #t 'line))
       (when (eq? new-mode 'search)
-        (set! search-queue '()))
+        (set! search-queue (make-queue)))
       (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
 
     (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
@@ -359,8 +360,9 @@
              get-search-hit-count
              get-replace-search-hit
              set-replace-start)
-    
+
     ;; (is-a?/c key-event%) -> void?
+    ;; handle search mode key events
     (define/private (do-search event)
       (define key (send event get-key-code))
       (match key
@@ -370,7 +372,9 @@
          (set! search-string the-string)
          (do-next-search)
          (set-mode! 'command)]
-        [#\backspace (dequeue-char!)]
+        [#\backspace
+         (unless (queue-empty? search-queue)
+           (dequeue-char!))]
         [(? char?) (enqueue-char! key)]
         [_ (void)]))
     
