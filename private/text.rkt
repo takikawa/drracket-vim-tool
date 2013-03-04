@@ -9,7 +9,7 @@
 
 (define on-paint/c
   (->m any/c (is-a?/c dc<%>) real? real? real? real? real? real?
-       (or/c (one-of/c 'no-cart 'show-inactive-caret 'show-caret)
+       (or/c (one-of/c 'no-caret 'show-inactive-caret 'show-caret)
              (cons/c natural-number/c natural-number/c))
        void?))
 
