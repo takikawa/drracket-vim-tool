@@ -18,9 +18,9 @@
   [vim-emulation-mixin
     (-> (class/c
           (inherit invalidate-bitmap-cache
-                   get-position 
-                   set-position 
-                   move-position 
+                   get-position
+                   set-position
+                   move-position
                    copy paste kill undo redo delete
                    line-start-position line-end-position position-line
                    get-view-size local-to-global
@@ -45,43 +45,43 @@
 (define vim-emulation-mixin
   (λ (cls)
     (class* cls (vim-emulation<%>)
-      
+
       ;; ==== public state & accessors ====
       (inherit get-tab invalidate-bitmap-cache)
-      
+
       (define/public-final (vim?) vim-emulation?)
-      
+
       (define/public-final (toggle-vim!)
         (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
         (set! vim-emulation? (not vim-emulation?)))
-      
+
       ;;; Private state
-      
-      ;; vim-style mode 
+
+      ;; vim-style mode
       ;; Editing modes: 'command 'insert 'visual
       ;; Bookkeeping: 'search
       (define mode 'command)
-      
+
       ;; used to build up a search string
       (define search-queue (make-queue))
       ;; current search string (#f means none set)
       (define search-string #f)
-      
+
       ;; helpers for searching
       ;; char? -> void?
       (define/private (enqueue-char! char)
         (enqueue-front! search-queue char)
         (update-mode!))
-      
+
       ;; -> void?
       (define/private (dequeue-char!)
         (dequeue! search-queue)
         (update-mode!))
-      
+
       ;; -> string?
       (define/private (search-queue->string)
         (list->string (reverse (queue->list search-queue))))
-      
+
       (define/private (set-mode! new-mode)
         (set! mode new-mode)
         (when (eq? new-mode 'visual-line)
@@ -90,19 +90,19 @@
         (when (eq? new-mode 'search)
           (set! search-queue (make-queue)))
         (update-mode!))
-        
+
       ;; handle the GUI portion of setting the mode line
       (define/private (update-mode!)
         (define frame (send (get-tab) get-frame))
         (send frame set-vim-status-message (mode-string)))
-      
+
       (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
-      
+
       (define mode-padding 3)
-      
+
       ;; continuation into key handling routine
       (define key-cont #f)
-      
+
       ;; ==== overrides ====
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
@@ -122,14 +122,14 @@
                  vim-prompt-tag
                  (λ (k) (set! key-cont k))))
             (super on-local-char event)))
-      
+
       ;; ==== private functionality ====
-      (inherit get-position set-position 
+      (inherit get-position set-position
                move-position
                copy paste kill undo redo delete
                line-start-position line-end-position position-line
                local-to-global find-wordbreak)
-      
+
       ;; mode string for mode line
       ;; -> string?
       (define/private (mode-string)
@@ -137,11 +137,11 @@
           ['command ""]
           ['search (string-append "/" (search-queue->string))]
           [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
-      
+
       ;; provide the next key later
       (define/private (get-next-key)
         (call/comp (λ (k) (abort/cc vim-prompt-tag k))))
-      
+
       ;; handles a multi-character command
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-command event)
@@ -151,7 +151,7 @@
           [#\d (do-delete (get-next-key))]
           [#\y (do-yank (get-next-key))]
           [_   (do-simple-command event)]))
-      
+
       ;; handle deletes
       (define/private (do-delete event)
         (let ([deleter (lambda (s e) (send this kill 0 s e))])
@@ -159,7 +159,7 @@
             [#\w (do-word deleter)]
             [#\d (do-line deleter)]
             [_ (clear-cont!)])))
-      
+
       ;; handle yanking
       (define/private (do-yank event)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
@@ -167,14 +167,14 @@
             [#\w (do-word copier)]
             [#\y (do-line copier)]
             [_ (clear-cont!)])))
-      
+
       (define-syntax-rule (do-line f)
         (let ([b (box 0)])
           (get-position b)
           (define line (position-line (unbox b)))
           (f (line-start-position line)
              (line-end-position line))))
-      
+
       (define-syntax-rule (do-word f)
         (let ([start (box 0)]
               [end (box 0)])
@@ -182,17 +182,17 @@
           (get-position end)
           (find-wordbreak start end 'selection)
           (f (unbox start) (unbox end))))
-      
+
       ;; clear the command continuation
       (define/private (clear-cont!)
         (set! key-cont #f))
-      
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-insert event)
         (if (eq? (send event get-key-code) 'escape)
             (set-mode! 'command)
             (super on-local-char event)))
-      
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-simple-command event)
         (match (send event get-key-code)
@@ -230,7 +230,7 @@
           [#\/ (set-mode! 'search)]
           [#\n (do-next-search)]
           [_   (void)]))
-      
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual event)
         (match (send event get-key-code)
@@ -239,7 +239,7 @@
           [#\k (move-position 'up #t)]
           [#\l (move-position 'right #t)]
           [_ (do-visual-line event)]))
-      
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual-line event)
         (match (send event get-key-code)
@@ -257,8 +257,8 @@
           ;; re-indent on tab
           [#\tab (super on-local-char event)]
           [_   (void)]))
-      
-      
+
+
       ;; searching
       ;; TODO: - backwards search
       ;;       - fix weird behavior when no more hits remain
@@ -266,7 +266,7 @@
                get-search-hit-count
                get-replace-search-hit
                set-replace-start)
-      
+
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
       (define/private (do-search event)
@@ -283,7 +283,7 @@
              (dequeue-char!))]
           [(? char?) (enqueue-char! key)]
           [_ (void)]))
-      
+
       (define/private (do-next-search [start-at-next-word #t])
         (when search-string
           ;; set the search state to get the next hit
@@ -297,7 +297,7 @@
             (set-position (get-replace-search-hit)))
           ;; immediately clear the state to remove bubbles
           (set-searching-state #f #f #f)))
-      
+
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
       (define/private (delete-next-newline-and-whitespace)
@@ -311,7 +311,7 @@
               (delete newline-pos)
               (loop (send this get-character newline-pos))))
           (send this end-edit-sequence)))
-      
+
       ;; -> void?
       (define/private (delete-until-end)
         (let* ([b (box 0)]
@@ -319,13 +319,13 @@
                [line (position-line (unbox b))]
                [eol (line-end-position line)])
           (kill 0 (unbox b) eol)))
-      
+
       ;; move selection by line
       ;; : (one-of/c 'down 'up) -> void?
       (define/private (visual-line-move dir)
         (move-position dir #t)
         (move-position 'right #t 'line))
-      
+
       ;; copy selection
       (define/private (visual-copy)
         (let ([bs (box 0)]
@@ -333,7 +333,7 @@
           (get-position bs be)
           (copy #f 0 (unbox bs) (unbox be))
           (visual-cleanup)))
-      
+
       ;; kill selection
       (define/private (visual-kill)
         (let ([bs (box 0)]
@@ -341,13 +341,13 @@
           (get-position bs be)
           (kill 0 (unbox bs) (unbox be))
           (visual-cleanup)))
-      
+
       ;; clear selection and end visual mode
       (define/private (visual-cleanup)
         (let ([b (box 0)])
           (get-position b)
           (set-position (unbox b) 'same)
           (set-mode! 'command)))
-      
+
       (super-new))))
-  
+
