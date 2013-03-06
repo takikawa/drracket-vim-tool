@@ -43,404 +43,311 @@
   (interface () vim?  toggle-vim!))
 
 (define vim-emulation-mixin
-  (mixin (text:basic<%> text:searching<%>) (vim-emulation<%>)
-
-    ;; ==== public state & accessors ====
-    (inherit invalidate-bitmap-cache)
-
-    (define/public-final (vim?) vim-emulation?)
-
-    (define/public-final (toggle-vim!)
-      (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
-      (set! vim-emulation? (not vim-emulation?)))
-
-    ;;; Private state
-
-    ;; vim-style mode 
-    ;; Editing modes: 'command 'insert 'visual
-    ;; Bookkeeping: 'search
-    (define mode 'command)
-    
-    ;; used to build up a search string
-    (define search-queue (make-queue))
-    ;; current search string (#f means none set)
-    (define search-string #f)
-
-    ;; helpers for searching
-    ;; char? -> void?
-    (define/private (enqueue-char! char)
-      (enqueue-front! search-queue char)
-      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
-    
-    ;; -> void?
-    (define/private (dequeue-char!)
-      (dequeue! search-queue)
-      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
-
-    ;; -> string?
-    (define/private (search-queue->string)
-      (list->string (reverse (queue->list search-queue))))
-
-    (define/private (set-mode! new-mode)
-      (set! mode new-mode)
-      (when (eq? new-mode 'visual-line)
-        (move-position 'left #f 'line)
+  (λ (cls)
+    (class* cls (vim-emulation<%>)
+      
+      ;; ==== public state & accessors ====
+      (inherit get-tab invalidate-bitmap-cache)
+      
+      (define/public-final (vim?) vim-emulation?)
+      
+      (define/public-final (toggle-vim!)
+        (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
+        (set! vim-emulation? (not vim-emulation?)))
+      
+      ;;; Private state
+      
+      ;; vim-style mode 
+      ;; Editing modes: 'command 'insert 'visual
+      ;; Bookkeeping: 'search
+      (define mode 'command)
+      
+      ;; used to build up a search string
+      (define search-queue (make-queue))
+      ;; current search string (#f means none set)
+      (define search-string #f)
+      
+      ;; helpers for searching
+      ;; char? -> void?
+      (define/private (enqueue-char! char)
+        (enqueue-front! search-queue char)
+        (update-mode!))
+      
+      ;; -> void?
+      (define/private (dequeue-char!)
+        (dequeue! search-queue)
+        (update-mode!))
+      
+      ;; -> string?
+      (define/private (search-queue->string)
+        (list->string (reverse (queue->list search-queue))))
+      
+      (define/private (set-mode! new-mode)
+        (set! mode new-mode)
+        (when (eq? new-mode 'visual-line)
+          (move-position 'left #f 'line)
+          (move-position 'right #t 'line))
+        (when (eq? new-mode 'search)
+          (set! search-queue (make-queue)))
+        (update-mode!))
+        
+      ;; handle the GUI portion of setting the mode line
+      (define/private (update-mode!)
+        (define frame (send (get-tab) get-frame))
+        (send frame set-vim-status-message (mode-string)))
+      
+      (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
+      
+      (define mode-padding 3)
+      
+      ;; continuation into key handling routine
+      (define key-cont #f)
+      
+      ;; ==== overrides ====
+      ;; override character handling and dispatch based on mode
+      ;; is-a?/c key-event% -> void?
+      (define/override (on-local-char event)
+        (if vim-emulation?
+            (if key-cont
+                (key-cont event)
+                (call/prompt
+                 (λ ()
+                   (cond [(eq? mode 'command) (do-command event)]
+                         [(eq? mode 'insert)  (do-insert event)]
+                         [(eq? mode 'visual)  (do-visual event)]
+                         [(eq? mode 'visual-line) (do-visual-line event)]
+                         [(eq? mode 'search) (do-search event)]
+                         [else (error "Unimplemented mode")])
+                   (clear-cont!))
+                 vim-prompt-tag
+                 (λ (k) (set! key-cont k))))
+            (super on-local-char event)))
+      
+      ;; ==== private functionality ====
+      (inherit get-position set-position 
+               move-position
+               copy paste kill undo redo delete
+               line-start-position line-end-position position-line
+               local-to-global find-wordbreak)
+      
+      ;; mode string for mode line
+      ;; -> string?
+      (define/private (mode-string)
+        (match mode
+          ['command ""]
+          ['search (string-append "/" (search-queue->string))]
+          [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
+      
+      ;; provide the next key later
+      (define/private (get-next-key)
+        (call/comp (λ (k) (abort/cc vim-prompt-tag k))))
+      
+      ;; handles a multi-character command
+      ;; (is-a?/c key-event%) -> void?
+      (define/private (do-command event)
+        (define key (send event get-key-code))
+        (match key
+          ['escape (clear-cont!)]
+          [#\d (do-delete (get-next-key))]
+          [#\y (do-yank (get-next-key))]
+          [_   (do-simple-command event)]))
+      
+      ;; handle deletes
+      (define/private (do-delete event)
+        (let ([deleter (lambda (s e) (send this kill 0 s e))])
+          (match (send event get-key-code)
+            [#\w (do-word deleter)]
+            [#\d (do-line deleter)]
+            [_ (clear-cont!)])))
+      
+      ;; handle yanking
+      (define/private (do-yank event)
+        (let ([copier (lambda (s e) (send this copy #f 0 s e))])
+          (match (send event get-key-code)
+            [#\w (do-word copier)]
+            [#\y (do-line copier)]
+            [_ (clear-cont!)])))
+      
+      (define-syntax-rule (do-line f)
+        (let ([b (box 0)])
+          (get-position b)
+          (define line (position-line (unbox b)))
+          (f (line-start-position line)
+             (line-end-position line))))
+      
+      (define-syntax-rule (do-word f)
+        (let ([start (box 0)]
+              [end (box 0)])
+          (get-position start)
+          (get-position end)
+          (find-wordbreak start end 'selection)
+          (f (unbox start) (unbox end))))
+      
+      ;; clear the command continuation
+      (define/private (clear-cont!)
+        (set! key-cont #f))
+      
+      ;; (is-a?/c key-event%) -> void?
+      (define/private (do-insert event)
+        (if (eq? (send event get-key-code) 'escape)
+            (set-mode! 'command)
+            (super on-local-char event)))
+      
+      ;; (is-a?/c key-event%) -> void?
+      (define/private (do-simple-command event)
+        (match (send event get-key-code)
+          ;; insertion
+          [#\a (set-mode! 'insert)]
+          [#\A (begin (move-position 'right #f 'line)
+                      (set-mode! 'insert))]
+          [#\i (set-mode! 'insert)]
+          [#\I (begin (move-position 'left #f 'line)
+                      (set-mode! 'insert))]
+          ;; modes
+          [#\v (set-mode! 'visual)]
+          [#\V (set-mode! 'visual-line)]
+          ;; movement
+          [#\f (and (send event get-control-down)
+                    (move-position 'down #f 'page))]
+          [#\b (and (send event get-control-down)
+                    (move-position 'up #f 'page))]
+          [#\h (move-position 'left)]
+          [#\j (move-position 'down)]
+          [#\k (move-position 'up)]
+          [#\l (move-position 'right)]
+          [#\w (move-position 'right #f 'word)]
+          [#\b (move-position 'right #f 'word)]
+          ;; editing
+          [#\J (delete-next-newline-and-whitespace)]
+          [#\x (delete)]
+          ;; copy & paste & editing
+          [#\D (delete-until-end)]
+          [#\p (paste)]
+          [#\u (undo)]
+          [#\r (and (send event get-control-down)
+                    (redo))]
+          ;; search
+          [#\/ (set-mode! 'search)]
+          [#\n (do-next-search)]
+          [_   (void)]))
+      
+      ;; (is-a?/c key-event%) -> void?
+      (define/private (do-visual event)
+        (match (send event get-key-code)
+          [#\h (move-position 'left #t)]
+          [#\j (move-position 'down #t)]
+          [#\k (move-position 'up #t)]
+          [#\l (move-position 'right #t)]
+          [_ (do-visual-line event)]))
+      
+      ;; (is-a?/c key-event%) -> void?
+      (define/private (do-visual-line event)
+        (match (send event get-key-code)
+          ;; modes
+          ['escape (set-mode! 'command)]
+          ;; copy & paste
+          [#\d (visual-kill)]
+          [#\x (visual-kill)]
+          [#\y (visual-copy)]
+          [#\p (begin (paste)
+                      (set-mode! 'command))]
+          ;; visual movement
+          [#\j (visual-line-move 'down)]
+          [#\k (visual-line-move 'up)]
+          ;; re-indent on tab
+          [#\tab (super on-local-char event)]
+          [_   (void)]))
+      
+      
+      ;; searching
+      ;; TODO: - backwards search
+      ;;       - fix weird behavior when no more hits remain
+      (inherit set-searching-state
+               get-search-hit-count
+               get-replace-search-hit
+               set-replace-start)
+      
+      ;; (is-a?/c key-event%) -> void?
+      ;; handle search mode key events
+      (define/private (do-search event)
+        (define key (send event get-key-code))
+        (match key
+          ['escape (set-mode! 'command)]
+          [#\return
+           (define the-string (search-queue->string))
+           (set! search-string the-string)
+           (do-next-search)
+           (set-mode! 'command)]
+          [#\backspace
+           (unless (queue-empty? search-queue)
+             (dequeue-char!))]
+          [(? char?) (enqueue-char! key)]
+          [_ (void)]))
+      
+      (define/private (do-next-search [start-at-next-word #t])
+        (when search-string
+          ;; set the search state to get the next hit
+          (set-searching-state search-string #f #f)
+          (when start-at-next-word
+            (move-position 'right #f 'word))
+          (define pos-box (box 0))
+          (get-position pos-box)
+          (set-replace-start (unbox pos-box))
+          (when (get-replace-search-hit)
+            (set-position (get-replace-search-hit)))
+          ;; immediately clear the state to remove bubbles
+          (set-searching-state #f #f #f)))
+      
+      ;; deletes starting from the next newline and to the first
+      ;; non-whitespace character after that position
+      (define/private (delete-next-newline-and-whitespace)
+        (define newline-pos (send this find-newline))
+        (when newline-pos
+          (send this begin-edit-sequence)
+          (delete newline-pos)
+          (let loop ([char (send this get-character newline-pos)])
+            (when (and (char-whitespace? char)
+                       (not (eq? #\newline char)))
+              (delete newline-pos)
+              (loop (send this get-character newline-pos))))
+          (send this end-edit-sequence)))
+      
+      ;; -> void?
+      (define/private (delete-until-end)
+        (let* ([b (box 0)]
+               [_ (get-position b)]
+               [line (position-line (unbox b))]
+               [eol (line-end-position line)])
+          (kill 0 (unbox b) eol)))
+      
+      ;; move selection by line
+      ;; : (one-of/c 'down 'up) -> void?
+      (define/private (visual-line-move dir)
+        (move-position dir #t)
         (move-position 'right #t 'line))
-      (when (eq? new-mode 'search)
-        (set! search-queue (make-queue)))
-      (invalidate-bitmap-cache 0.0 0.0 'display-end 'display-end))
-
-    (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
-
-    (define mode-padding 3)
-    (define old-clipping #f)
-
-    ;; save the dc state so we don't mangle it for others
-    (define-struct dc-state (pen font fg))
-    (define saved-dc-state #f)
-    
-    ;; continuation into key handling routine
-    (define key-cont #f)
-
-    ;; ==== overrides ====
-    ;; override character handling and dispatch based on mode
-    ;; is-a?/c key-event% -> void?
-    (define/override (on-local-char event)
-      (if vim-emulation?
-          (if key-cont
-              (key-cont event)
-              (call/prompt
-               (λ ()
-                 (cond [(eq? mode 'command) (do-command event)]
-                       [(eq? mode 'insert)  (do-insert event)]
-                       [(eq? mode 'visual)  (do-visual event)]
-                       [(eq? mode 'visual-line) (do-visual-line event)]
-                       [(eq? mode 'search) (do-search event)]
-                       [else (error "Unimplemented mode")])
-                 (clear-cont!))
-               vim-prompt-tag
-               (λ (k) (set! key-cont k))))
-          (super on-local-char event)))
-
-    (define/override (on-paint before? dc left top right bottom dx dy draw-caret)
-      (if (and vim-emulation?
-               ;; in command mode, we don't draw anything special
-               (not (eq? mode 'command)))
-        (begin
-          (save-dc-state dc)
-          (setup-dc dc)
-          (if (and before?)
-            (fix-clipping dc left top right bottom dx dy)
-            (begin
-              ;; don't clip out mode line for *our* drawing
-              (send dc set-clipping-region old-clipping)
-              (draw-mode-line dc left top right bottom dx dy)))
-          (restore-dc-state dc)
-          (super on-paint before? dc left top right bottom dx dy draw-caret))
-        (super on-paint before? dc left top right bottom dx dy draw-caret)))
-
-    ;; ==== private functionality ====
-    (inherit get-position set-position 
-             move-position 
-             copy paste kill undo redo delete
-             line-start-position line-end-position position-line
-             get-view-size local-to-global
-             find-wordbreak get-admin
-             get-style-list get-padding)
+      
+      ;; copy selection
+      (define/private (visual-copy)
+        (let ([bs (box 0)]
+              [be (box 0)])
+          (get-position bs be)
+          (copy #f 0 (unbox bs) (unbox be))
+          (visual-cleanup)))
+      
+      ;; kill selection
+      (define/private (visual-kill)
+        (let ([bs (box 0)]
+              [be (box 0)])
+          (get-position bs be)
+          (kill 0 (unbox bs) (unbox be))
+          (visual-cleanup)))
+      
+      ;; clear selection and end visual mode
+      (define/private (visual-cleanup)
+        (let ([b (box 0)])
+          (get-position b)
+          (set-position (unbox b) 'same)
+          (set-mode! 'command)))
+      
+      (super-new))))
   
-    ;; helpers for on-paint
-    (define/private (setup-dc dc)
-      (let* ([font (send (get-style) get-font)]
-             [font-size (send font get-point-size)])
-        (send dc set-pen (get-foreground) 1 'solid)
-        (send dc set-font (make-object font% font-size 'modern))
-        (send dc set-text-foreground (get-foreground))))
-
-    (define/private (get-style)
-      (let ([style-list (get-style-list)])
-        (or (send style-list find-named-style "Standard")
-            (send style-list basic-style))))
-
-    (define/private (get-foreground)
-      (send (get-style) get-foreground))
-
-    (define/private (save-dc-state dc)
-      (set! saved-dc-state 
-        (dc-state (send dc get-pen)
-                  (send dc get-font)
-                  (send dc get-text-foreground))))
-
-    (define/private (restore-dc-state dc)
-      (send dc set-pen (dc-state-pen saved-dc-state))
-      (send dc set-font (dc-state-font saved-dc-state))
-      (send dc set-text-foreground (dc-state-fg saved-dc-state)))
-
-    ;; set up the clipping region to exclude where we'd like to draw
-    (define/private (fix-clipping dc left top right bottom dx dy)
-      (set! old-clipping (send dc get-clipping-region))
-      (define mode-space   (make-object region% dc))
-      (define new-clipping (make-object region% dc))
-      (define everything   (make-object region% dc))
-      (define-values (x y w h padding) 
-        (get-mode-dimensions dc left top right bottom dx dy))
-      (send mode-space set-rectangle x y (+ w (* 2 padding)) (+ h (* 2 padding)))
-      (send everything set-rectangle
-            (+ dx left) (+ dy top)
-            (- right left) (- bottom top))
-      (if old-clipping
-          (send new-clipping union old-clipping)
-          (send new-clipping union everything))
-      (send new-clipping subtract mode-space)
-      (send dc set-clipping-region new-clipping))
-
-    ;; drawing mode lines
-    ;; (is-a?/c dc<%>) real? real? real? real? real? real? -> void?
-    (define/private (draw-mode-line dc left top right bottom dx dy)
-      (define-values (x y width height padding)
-        (get-mode-dimensions dc left top right bottom dx dy))
-      (cond [(eq? mode 'command) (void)]
-            [else
-              (send dc set-pen "white" 0 'transparent)
-              (send dc draw-rectangle (+ x padding) (+ y padding) width height)
-              (send dc draw-text (mode-string) (+ x padding) (+ y padding))]))
-
-    ;; get the dimensions for how to draw a mode line
-    ;; (is-a?/c dc<%>) real? real? real? real? real? real? ->
-    ;;   (values x y width height padding)
-    ;; where x, y specify top-left corner of mode line
-    ;;       width, height are as named
-    ;;       padding is the space to add around the text
-    (define/private (get-mode-dimensions dc left top right bottom dx dy)
-      (define-values (bx by bw bh) (values (box 0) (box 0) (box 0) (box 0)))
-      ;(define-values (pl pt pr pb) (get-padding))
-      (let ([admin (get-admin)])
-        (when admin (send admin get-view bx by bw bh #f))
-        (define mode-string (symbol->string mode))
-        (define-values (_1 th _3 _4)
-          (send dc get-text-extent mode-string))
-        (define y (+ (unbox by) (- (unbox bh) th) dy))
-        (values (+ (unbox bx) dx)
-                (- (+ (unbox by) (- (unbox bh) th) dy) mode-padding)
-                (unbox bw)
-                th
-                mode-padding)))
-
-    ;; mode string for mode line
-    ;; -> string?
-    (define/private (mode-string)
-      (match mode
-        ['search (string-append "/" (search-queue->string))]
-        [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
-    
-    ;; provide the next key later
-    (define/private (get-next-key)
-      (call/comp (λ (k) (abort/cc vim-prompt-tag k))))
-
-    ;; handles a multi-character command
-    ;; (is-a?/c key-event%) -> void?
-    (define/private (do-command event)
-      (define key (send event get-key-code))
-      (match key
-        ['escape (clear-cont!)]
-        [#\d (do-delete (get-next-key))]
-        [#\y (do-yank (get-next-key))]
-        [_   (do-simple-command event)]))
-
-    ;; handle deletes
-    (define/private (do-delete event)
-      (let ([deleter (lambda (s e) (send this kill 0 s e))])
-        (match (send event get-key-code)
-          [#\w (do-word deleter)]
-          [#\d (do-line deleter)]
-          [_ (clear-cont!)])))
-   
-    ;; handle yanking
-    (define/private (do-yank event)
-      (let ([copier (lambda (s e) (send this copy #f 0 s e))])
-        (match (send event get-key-code)
-          [#\w (do-word copier)]
-          [#\y (do-line copier)]
-          [_ (clear-cont!)])))
-
-    (define-syntax-rule (do-line f)
-      (let ([b (box 0)])
-        (get-position b)
-        (define line (position-line (unbox b)))
-        (f (line-start-position line)
-           (line-end-position line))))
-
-    (define-syntax-rule (do-word f)
-      (let ([start (box 0)]
-            [end (box 0)])
-        (get-position start)
-        (get-position end)
-        (find-wordbreak start end 'selection)
-        (f (unbox start) (unbox end))))
-
-    ;; clear the command continuation
-    (define/private (clear-cont!)
-      (set! key-cont #f))
-
-    ;; (is-a?/c key-event%) -> void?
-    (define/private (do-insert event)
-      (if (eq? (send event get-key-code) 'escape)
-          (set-mode! 'command)
-          (super on-local-char event)))
-
-    ;; (is-a?/c key-event%) -> void?
-    (define/private (do-simple-command event)
-      (match (send event get-key-code)
-        ;; insertion
-        [#\a (set-mode! 'insert)]
-        [#\A (begin (move-position 'right #f 'line)
-                    (set-mode! 'insert))]
-        [#\i (set-mode! 'insert)]
-        [#\I (begin (move-position 'left #f 'line)
-                    (set-mode! 'insert))]
-        ;; modes
-        [#\v (set-mode! 'visual)]
-        [#\V (set-mode! 'visual-line)]
-        ;; movement
-        [#\f (and (send event get-control-down)
-                  (move-position 'down #f 'page))]
-        [#\b (and (send event get-control-down)
-                  (move-position 'up #f 'page))]
-        [#\h (move-position 'left)]
-        [#\j (move-position 'down)]
-        [#\k (move-position 'up)]
-        [#\l (move-position 'right)]
-        [#\w (move-position 'right #f 'word)]
-        [#\b (move-position 'right #f 'word)]
-        ;; editing
-        [#\J (delete-next-newline-and-whitespace)]
-        [#\x (delete)]
-        ;; copy & paste & editing
-        [#\D (delete-until-end)]
-        [#\p (paste)]
-        [#\u (undo)]
-        [#\r (and (send event get-control-down)
-                  (redo))]
-        ;; search
-        [#\/ (set-mode! 'search)]
-        [#\n (do-next-search)]
-        [_   (void)]))
-    
-    ;; (is-a?/c key-event%) -> void?
-    (define/private (do-visual event)
-      (match (send event get-key-code)
-        [#\h (move-position 'left #t)]
-        [#\j (move-position 'down #t)]
-        [#\k (move-position 'up #t)]
-        [#\l (move-position 'right #t)]
-        [_ (do-visual-line event)]))
-
-    ;; (is-a?/c key-event%) -> void?
-    (define/private (do-visual-line event)
-      (match (send event get-key-code)
-        ;; modes
-        ['escape (set-mode! 'command)]
-        ;; copy & paste
-        [#\d (visual-kill)]
-        [#\x (visual-kill)]
-        [#\y (visual-copy)]
-        [#\p (begin (paste)
-                    (set-mode! 'command))]
-        ;; visual movement
-        [#\j (visual-line-move 'down)]
-        [#\k (visual-line-move 'up)]
-        ;; re-indent on tab
-        [#\tab (super on-local-char event)]
-        [_   (void)]))
-    
-
-    ;; searching
-    ;; TODO: - backwards search
-    ;;       - fix weird behavior when no more hits remain
-    (inherit set-searching-state
-             get-search-hit-count
-             get-replace-search-hit
-             set-replace-start)
-
-    ;; (is-a?/c key-event%) -> void?
-    ;; handle search mode key events
-    (define/private (do-search event)
-      (define key (send event get-key-code))
-      (match key
-        ['escape (set-mode! 'command)]
-        [#\return
-         (define the-string (search-queue->string))
-         (set! search-string the-string)
-         (do-next-search)
-         (set-mode! 'command)]
-        [#\backspace
-         (unless (queue-empty? search-queue)
-           (dequeue-char!))]
-        [(? char?) (enqueue-char! key)]
-        [_ (void)]))
-    
-    (define/private (do-next-search [start-at-next-word #t])
-      (when search-string
-        ;; set the search state to get the next hit
-        (set-searching-state search-string #f #f)
-        (when start-at-next-word
-          (move-position 'right #f 'word))
-        (define pos-box (box 0))
-        (get-position pos-box)
-        (set-replace-start (unbox pos-box))
-        (when (get-replace-search-hit)
-          (set-position (get-replace-search-hit)))
-        ;; immediately clear the state to remove bubbles
-        (set-searching-state #f #f #f)))
-
-    ;; deletes starting from the next newline and to the first
-    ;; non-whitespace character after that position
-    (define/private (delete-next-newline-and-whitespace)
-      (define newline-pos (send this find-newline))
-      (when newline-pos
-        (send this begin-edit-sequence)
-        (delete newline-pos)
-        (let loop ([char (send this get-character newline-pos)])
-          (when (and (char-whitespace? char)
-                     (not (eq? #\newline char)))
-            (delete newline-pos)
-            (loop (send this get-character newline-pos))))
-        (send this end-edit-sequence)))
-
-    ;; -> void?
-    (define/private (delete-until-end)
-      (let* ([b (box 0)]
-             [_ (get-position b)]
-             [line (position-line (unbox b))]
-             [eol (line-end-position line)])
-        (kill 0 (unbox b) eol)))
-    
-    ;; move selection by line
-    ;; : (one-of/c 'down 'up) -> void?
-    (define/private (visual-line-move dir)
-      (move-position dir #t)
-      (move-position 'right #t 'line))
-
-    ;; copy selection
-    (define/private (visual-copy)
-      (let ([bs (box 0)]
-            [be (box 0)])
-        (get-position bs be)
-        (copy #f 0 (unbox bs) (unbox be))
-        (visual-cleanup)))
-
-    ;; kill selection
-    (define/private (visual-kill)
-      (let ([bs (box 0)]
-            [be (box 0)])
-        (get-position bs be)
-        (kill 0 (unbox bs) (unbox be))
-        (visual-cleanup)))
-
-    ;; clear selection and end visual mode
-    (define/private (visual-cleanup)
-      (let ([b (box 0)])
-        (get-position b)
-        (set-position (unbox b) 'same)
-        (set-mode! 'command)))
-
-    (super-new)))
