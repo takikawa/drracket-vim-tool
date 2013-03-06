@@ -1,6 +1,7 @@
 #lang racket/gui
 
-(require data/queue
+(require data/gvector
+         data/queue
          framework
          racket/control)
 
@@ -67,6 +68,9 @@
       ;; current search string (#f means none set)
       (define search-string #f)
 
+      ;; for ex commands
+      (define ex-queue (gvector))
+
       ;; helpers for searching
       ;; char? -> void?
       (define/private (enqueue-char! char)
@@ -117,6 +121,7 @@
                          [(eq? mode 'visual)  (do-visual event)]
                          [(eq? mode 'visual-line) (do-visual-line event)]
                          [(eq? mode 'search) (do-search event)]
+                         [(eq? mode 'ex) (do-ex event)]
                          [else (error "Unimplemented mode")])
                    (clear-cont!))
                  vim-prompt-tag
@@ -136,6 +141,7 @@
         (match mode
           ['command ""]
           ['search (string-append "/" (search-queue->string))]
+          ['ex (string-append ":" (list->string (gvector->list ex-queue)))]
           [_ (string-upcase (format "-- ~a --" (symbol->string mode)))]))
 
       ;; provide the next key later
@@ -206,6 +212,7 @@
           ;; modes
           [#\v (set-mode! 'visual)]
           [#\V (set-mode! 'visual-line)]
+          [#\: (set-mode! 'ex)]
           ;; movement
           [#\f (and (send event get-control-down)
                     (move-position 'down #f 'page))]
@@ -283,6 +290,30 @@
              (dequeue-char!))]
           [(? char?) (enqueue-char! key)]
           [_ (void)]))
+
+      ;; (is-a?/c key-event%) -> void
+      ;; handle ex commands
+      (define/private (do-ex event)
+        (define key (send event get-key-code))
+        (match key
+          [#\return (run-ex-command)]
+          ['escape (set-mode! 'command)]
+          [#\backspace
+           (unless (= (gvector-count ex-queue) 1)
+             (gvector-remove-last! ex-queue))]
+          [(? char?) (gvector-add! ex-queue key)]
+          [_ (void)])
+        (update-mode!))
+
+      ;; run the current ex command
+      (define/private (run-ex-command)
+        (match (list->string (gvector->list ex-queue))
+          ["w" (send this save-file)]
+          ["tabnext" (send (send (get-tab) get-frame) next-tab)]
+          ["tabprev" (send (send (get-tab) get-frame) prev-tab)]
+          [_ (void)])
+        (set-mode! 'command)
+        (set! ex-queue (gvector)))
 
       (define/private (do-next-search [start-at-next-word #t])
         (when search-string
