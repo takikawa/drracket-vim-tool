@@ -7,3 +7,7 @@
 (define blurb '("Vim-style editing for DrRacket"))
 (define categories '(devtools))
 (define primary-file "tool.rkt")
+
+(define deps '())
+(define single-collection "drracket-vim-tool")
+
