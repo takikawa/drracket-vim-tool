@@ -272,7 +272,7 @@
       (inherit set-searching-state
                get-search-hit-count
                get-replace-search-hit
-               set-replace-start)
+               search-updates-pending?)
 
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
@@ -317,17 +317,21 @@
 
       (define/private (do-next-search [start-at-next-word #t])
         (when search-string
-          ;; set the search state to get the next hit
-          (set-searching-state search-string #f #f)
+          (define old-pos (box 0))
+          (get-position old-pos)
           (when start-at-next-word
             (move-position 'right #f 'word))
-          (define pos-box (box 0))
-          (get-position pos-box)
-          (set-replace-start (unbox pos-box))
-          (when (get-replace-search-hit)
-            (set-position (get-replace-search-hit)))
+          ;; set the search state to get the next hit
+          (set-searching-state search-string #f #t #f)
+          (let loop ()
+            (when (search-updates-pending?)
+              (yield)
+              (loop)))
+          (if (get-replace-search-hit)
+              (set-position (get-replace-search-hit))
+              (set-position (unbox old-pos)))
           ;; immediately clear the state to remove bubbles
-          (set-searching-state #f #f #f)))
+          (set-searching-state #f #t #f #f)))
 
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
