@@ -6,10 +6,19 @@ This plugin adds vim-like editing to the definitions area of DrRacket.
 Note: this software is alpha quality, but if you'd still like to try
 it anyway, follow these steps:
 
+On Racket 5.3.6 or lower:
+
+  * `git clone git://github.com/takikawa/drracket-vim-tool.git`
+  * `raco link drracket-vim-tool`
+  * `raco setup drracket-vim-tool`
+
+On an up-to-date git version of Racket:
+
   * `git clone git://github.com/takikawa/drracket-vim-tool.git`
   * `raco pkg install drracket-vim-tool/`
-  * Now when you load DrRacket, you should see a vim option in the
-    Edit menu. Click that to enable vim mode.
+
+Now when you load DrRacket, you should see a vim option in the
+`Edit` menu. Click that to enable vim mode.
 
 This plugin is released under the GPLv3. Patches welcome.
 
