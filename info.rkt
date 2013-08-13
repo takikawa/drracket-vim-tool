@@ -8,6 +8,6 @@
 (define categories '(devtools))
 (define primary-file "tool.rkt")
 
-(define deps '())
+(define deps '("base" "gui-lib" "data-lib" "drracket-plugin-lib"))
 (define single-collection "drracket-vim-tool")
 
