@@ -178,7 +178,8 @@
         (let ([b (box 0)])
           (get-position b)
           (define line (position-line (unbox b)))
-          (f (line-start-position line)
+          (define start (line-start-position line))
+          (f (if (zero? start) start (sub1 start))
              (line-end-position line))))
 
       (define-syntax-rule (do-word f)
