@@ -22,6 +22,7 @@
                    get-position
                    set-position
                    move-position
+                   insert
                    copy paste kill undo redo delete
                    line-start-position line-end-position position-line
                    get-view-size local-to-global
@@ -178,7 +179,8 @@
         (let ([b (box 0)])
           (get-position b)
           (define line (position-line (unbox b)))
-          (f (line-start-position line)
+          (define start (line-start-position line))
+          (f (if (zero? start) start (sub1 start))
              (line-end-position line))))
 
       (define-syntax-rule (do-word f)
@@ -208,6 +210,12 @@
                       (set-mode! 'insert))]
           [#\i (set-mode! 'insert)]
           [#\I (begin (move-position 'left #f 'line)
+                      (set-mode! 'insert))]
+          [#\O (begin (insert-line-before)
+                      (move-position 'up)
+                      (set-mode! 'insert))]
+          [#\o (begin (insert-line-after)
+                      (move-position 'down)
                       (set-mode! 'insert))]
           ;; modes
           [#\v (set-mode! 'visual)]
@@ -383,6 +391,25 @@
           (get-position b)
           (set-position (unbox b) 'same)
           (set-mode! 'command)))
+      
+      ;; insert line after the line the cursor is currently on
+      (define/private (insert-line-after)
+        (define-values (_start end) (get-current-line-start-end))
+        (send this insert "\n" end))
+      
+      ;; insert line before the line the cursor is currently on
+      (define/private (insert-line-before)
+        (define-values (start _end) (get-current-line-start-end))
+        (send this insert "\n" (if (zero? start) start (sub1 start))))
+      
+      ;; -> (values int int)
+      ;; gets the start and end position of the line at the start of current selection
+      (define/private (get-current-line-start-end)
+        (define b (box 0))
+        (get-position b)
+        (define line (position-line (unbox b)))
+        (values (line-start-position line)
+                (line-end-position line)))
 
       (super-new))))
 
