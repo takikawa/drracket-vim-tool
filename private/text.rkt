@@ -232,6 +232,9 @@
           [#\l (move-position 'right)]
           [#\w (move-position 'right #f 'word)]
           [#\b (move-position 'right #f 'word)]
+          [#\0 (move-position 'left #f 'line)]
+          [#\$ (move-position 'right #f 'line)]
+
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
           [#\x (delete)]
