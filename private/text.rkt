@@ -224,16 +224,17 @@
           ;; movement
           [#\f (and (send event get-control-down)
                     (move-position 'down #f 'page))]
-          [#\b (and (send event get-control-down)
-                    (move-position 'up #f 'page))]
+          [#\b (if (send event get-control-down)
+                   (move-position 'up #f 'page)
+                   (move-position 'left #f 'word))]
           [#\h (move-position 'left)]
           [#\j (move-position 'down)]
           [#\k (move-position 'up)]
           [#\l (move-position 'right)]
           [#\w (move-position 'right #f 'word)]
-          [#\b (move-position 'right #f 'word)]
           [#\0 (move-position 'left #f 'line)]
           [#\$ (move-position 'right #f 'line)]
+          [#\^ (move-position 'left #f 'line)]
 
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
@@ -252,6 +253,10 @@
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual event)
         (match (send event get-key-code)
+          [#\b (move-position 'left #f 'word)]
+          [#\w (move-position 'right #f 'word)]
+          [#\$ (move-position 'right #f 'line)]
+          [#\^ (move-position 'left #f 'line)]
           [#\h (move-position 'left #t)]
           [#\j (move-position 'down #t)]
           [#\k (move-position 'up #t)]
