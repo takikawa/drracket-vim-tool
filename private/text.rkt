@@ -3,7 +3,8 @@
 (require data/gvector
          data/queue
          framework
-         racket/control)
+         racket/control
+         unstable/function)
 
 (define on-local-char/c
   (->m (is-a?/c key-event%) void?))
@@ -157,12 +158,33 @@
           ['escape (clear-cont!)]
           [#\d (do-delete (get-next-key))]
           [#\y (do-yank (get-next-key))]
+          [#\g (do-global (get-next-key))]
+          [#\G (move-position 'end #f)]
+          [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
           [_   (do-simple-command event)]))
+
+      ;; handles global commands
+      (define/private (do-global event)
+        (match (send event get-key-code)
+          ['release (do-global (get-next-key))]
+          [#\g (move-position 'home #f)]
+          [_ (clear-cont!)]))
+
+      ;; handles command repetition and line jump
+      (define/private (do-repeat digit)
+        (define (char-numeric->number x) (string->number (string x)))
+        (let loop ([num (char-numeric->number digit)])
+          (match (send (get-next-key) get-key-code)
+            [(or 'shift 'release) (loop num)]
+            [#\G (set-position (line-start-position (sub1 num)))]
+            [(? (conjoin char? char-numeric?) digit) (loop (+ (char-numeric->number digit) (* 10 num)))]
+            [_ (clear-cont!)])))
 
       ;; handle deletes
       (define/private (do-delete event)
         (let ([deleter (lambda (s e) (send this kill 0 s e))])
           (match (send event get-key-code)
+            ['release (do-delete (get-next-key))]
             [#\w (do-word deleter)]
             [#\d (do-line deleter)]
             [_ (clear-cont!)])))
@@ -171,6 +193,7 @@
       (define/private (do-yank event)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
           (match (send event get-key-code)
+            ['release (do-yank (get-next-key))]
             [#\w (do-word copier)]
             [#\y (do-line copier)]
             [_ (clear-cont!)])))
@@ -224,16 +247,17 @@
           ;; movement
           [#\f (and (send event get-control-down)
                     (move-position 'down #f 'page))]
-          [#\b (and (send event get-control-down)
-                    (move-position 'up #f 'page))]
+          [#\b (if (send event get-control-down)
+                   (move-position 'up #f 'page)
+                   (move-position 'left #f 'word))]
           [#\h (move-position 'left)]
           [#\j (move-position 'down)]
           [#\k (move-position 'up)]
           [#\l (move-position 'right)]
           [#\w (move-position 'right #f 'word)]
-          [#\b (move-position 'right #f 'word)]
           [#\0 (move-position 'left #f 'line)]
           [#\$ (move-position 'right #f 'line)]
+          [#\^ (move-position 'left #f 'line)]
 
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
@@ -252,6 +276,10 @@
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual event)
         (match (send event get-key-code)
+          [#\b (move-position 'left #t 'word)]
+          [#\w (move-position 'right #t 'word)]
+          [#\$ (move-position 'right #t 'line)]
+          [#\^ (move-position 'left #t 'line)]
           [#\h (move-position 'left #t)]
           [#\j (move-position 'down #t)]
           [#\k (move-position 'up #t)]
@@ -377,7 +405,10 @@
         (let ([bs (box 0)]
               [be (box 0)])
           (get-position bs be)
-          (copy #f 0 (unbox bs) (unbox be))
+          (copy #f 0 (unbox bs)
+                     (if (= (line-end-position (position-line (unbox be))) (unbox be))
+                         (add1 (unbox be))
+                         (unbox be)))
           (visual-cleanup)))
 
       ;; kill selection
@@ -385,7 +416,10 @@
         (let ([bs (box 0)]
               [be (box 0)])
           (get-position bs be)
-          (kill 0 (unbox bs) (unbox be))
+          (kill 0 (unbox bs)
+                  (if (= (line-end-position (position-line (unbox be))) (unbox be))
+                      (add1 (unbox be))
+                      (unbox be)))
           (visual-cleanup)))
 
       ;; clear selection and end visual mode
