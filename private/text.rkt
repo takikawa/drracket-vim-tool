@@ -73,6 +73,11 @@
       ;; for ex commands
       (define ex-queue (gvector))
 
+      ;; local mark store, a vector storing buffer positions
+      ;; indexed by alphabet position, e.g., #\a -> 0
+      ;; stores #f if the given mark isn't set
+      (define local-marks (make-vector 26 #f))
+
       ;; helpers for searching
       ;; char? -> void?
       (define/private (enqueue-char! char)
@@ -113,7 +118,8 @@
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
       (define/override (on-local-char event)
-        (if vim-emulation?
+        (if (and vim-emulation?
+                 (not (ignored-event? event)))
             (if key-cont
                 (key-cont event)
                 (call/prompt
@@ -129,6 +135,11 @@
                  vim-prompt-tag
                  (λ (k) (set! key-cont k))))
             (super on-local-char event)))
+
+      ;; some events are ignored because they're irrelevant for vim emulation,
+      ;; such as key release events (FIXME: this may not be exhaustive)
+      (define/private (ignored-event? event)
+        (eq? (send event get-key-code) 'release))
 
       ;; ==== private functionality ====
       (inherit get-position set-position
@@ -160,6 +171,9 @@
           [#\d (do-delete (get-next-key))]
           [#\y (do-yank (get-next-key))]
           [#\g (do-global (get-next-key))]
+          [#\m (do-mark 'save (get-next-key))]
+          [#\' (do-mark 'apostrophe (get-next-key))]
+          [#\` (do-mark 'backtick (get-next-key))]
           [#\G (move-position 'end #f)]
           [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
           [_   (do-simple-command event)]))
@@ -200,6 +214,44 @@
             [#\w (do-word copier)]
             [#\y (do-line copier)]
             [_ (clear-cont!)])))
+
+      ;; handle mark setting and navigation
+      (define/private (do-mark kind next-key)
+        (define char (send next-key get-key-code))
+        (when (mark-char? char)
+          (match kind
+            ['apostrophe
+             (define mark-pos (lookup-mark char))
+             (when mark-pos
+               (define mark-line (position-line mark-pos))
+               (set-position (line-start-position mark-line)))]
+            ['backtick
+             (define mark-pos (lookup-mark char))
+             (when mark-pos
+               (set-position mark-pos))]
+            ['save (set-mark char)]))
+        (clear-cont!))
+
+      ;; Look up a mark and return the mapped position. If the
+      ;; key is an invalid mark character, return #f
+      (define/private (lookup-mark key)
+        (vector-ref local-marks
+                    (- (char->integer key)
+                       (char->integer #\a))))
+
+      ;; Set a mark for the current position
+      (define/private (set-mark char)
+        (define start-box (box 0))
+        (get-position start-box)
+        (vector-set! local-marks
+                     (- (char->integer char)
+                        (char->integer #\a))
+                     (unbox start-box)))
+
+      (define/private (mark-char? key)
+        (and (char? key)
+             (char>=? key #\a)
+             (char<=? key #\z)))
 
       (define-syntax-rule (do-line f)
         (let ([b (box 0)])
