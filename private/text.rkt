@@ -135,6 +135,7 @@
                move-position
                copy paste kill undo redo delete
                line-start-position line-end-position position-line
+               last-line
                local-to-global find-wordbreak)
 
       ;; mode string for mode line
@@ -176,7 +177,9 @@
         (let loop ([num (char-numeric->number digit)])
           (match (send (get-next-key) get-key-code)
             [(or 'shift 'release) (loop num)]
-            [#\G (set-position (line-start-position (sub1 num)))]
+            [#\G (if (zero? num)
+                     (set-position (line-start-position (last-line)))
+                     (set-position (line-start-position (sub1 num))))]
             [(? (conjoin char? char-numeric?) digit) (loop (+ (char-numeric->number digit) (* 10 num)))]
             [_ (clear-cont!)])))
 
