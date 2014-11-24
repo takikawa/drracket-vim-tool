@@ -149,7 +149,8 @@
                last-line
                local-to-global find-wordbreak
                begin-edit-sequence end-edit-sequence
-               get-character find-newline)
+               get-character find-newline
+               forward-sexp backward-sexp)
 
       ;; mode string for mode line
       ;; -> string?
@@ -315,6 +316,7 @@
           [#\0 (move-position 'left #f 'line)]
           [#\$ (move-position 'right #f 'line)]
           [#\^ (move-position 'left #f 'line)]
+          [#\% (move-matching-paren)]
 
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
@@ -443,6 +445,20 @@
               (loop (get-character newline-pos))))
           (set-position newline-pos)
           (end-edit-sequence)))
+
+      ;; implements the behavior of "%" in vim
+      (define/private (move-matching-paren)
+        (define pos-box (box 0))
+        (get-position pos-box)
+        (define pos (unbox pos-box))
+        (define char (get-character pos))
+        (match char
+          [(or #\) #\] #\})
+           (backward-sexp (add1 pos))]
+          [(or #\( #\[ #\{)
+           (forward-sexp pos)
+           (move-position 'left)]
+          [_ (void)]))
 
       ;; -> void?
       (define/private (delete-until-end)
