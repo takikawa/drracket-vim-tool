@@ -147,7 +147,9 @@
                copy paste kill undo redo delete
                line-start-position line-end-position position-line
                last-line
-               local-to-global find-wordbreak)
+               local-to-global find-wordbreak
+               begin-edit-sequence end-edit-sequence
+               get-character find-newline)
 
       ;; mode string for mode line
       ;; -> string?
@@ -430,17 +432,17 @@
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
       (define/private (delete-next-newline-and-whitespace)
-        (define newline-pos (send this find-newline))
+        (define newline-pos (find-newline))
         (when newline-pos
-          (send this begin-edit-sequence)
+          (begin-edit-sequence)
           (delete newline-pos)
-          (let loop ([char (send this get-character newline-pos)])
+          (let loop ([char (get-character newline-pos)])
             (when (and (char-whitespace? char)
                        (not (eq? #\newline char)))
               (delete newline-pos)
-              (loop (send this get-character newline-pos))))
+              (loop (get-character newline-pos))))
           (set-position newline-pos)
-          (send this end-edit-sequence)))
+          (end-edit-sequence)))
 
       ;; -> void?
       (define/private (delete-until-end)
