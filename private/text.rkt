@@ -439,6 +439,7 @@
                        (not (eq? #\newline char)))
               (delete newline-pos)
               (loop (send this get-character newline-pos))))
+          (set-position newline-pos)
           (send this end-edit-sequence)))
 
       ;; -> void?
