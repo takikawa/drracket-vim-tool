@@ -123,6 +123,12 @@
       ;; continuation into key handling routine
       (define key-cont #f)
 
+      ;; paste-type : (or/c 'normal 'visual-line)
+      ;; Controls how pasting should behave based on how the copy was done
+      ;; FIXME: once paste buffers are supported, this should map buffers
+      ;;        to paste types instead
+      (define paste-type 'normal)
+
       ;; ==== overrides & augments ====
       (inherit flash-on flash-off line-length hide-caret
                position-location get-line-spacing)
@@ -243,7 +249,7 @@
       (inherit get-position set-position
                get-start-position get-end-position
                move-position
-               copy paste kill undo redo delete
+               copy paste kill undo redo delete insert
                line-start-position line-end-position position-line
                last-line
                local-to-global find-wordbreak
@@ -312,12 +318,26 @@
 
       ;; handle yanking
       (define/private (do-yank event)
+        (set! paste-type 'normal)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
           (match (send event get-key-code)
             ['release (do-yank (get-next-key))]
             [#\w (do-word copier)]
             [#\y (do-line copier)]
             [_ (clear-cont!)])))
+
+      ;; handle pasting, esp. visual-line type pasting
+      (define/private (do-paste)
+        (cond [(eq? paste-type 'visual-line)
+               (begin-edit-sequence)
+               (define end (get-end-position))
+               (define line (position-line end))
+               (define pos (line-end-position line))
+               (insert "\n" pos)
+               (paste 0 (add1 pos))
+               (end-edit-sequence)]
+              [else
+               (paste)]))
 
       ;; handle mark setting and navigation
       (define/private (do-mark kind next-key)
@@ -429,7 +449,7 @@
           [#\x (do-delete-insertion-point)]
           ;; copy & paste & editing
           [#\D (delete-until-end)]
-          [#\p (paste)]
+          [#\p (do-paste)]
           [#\u (undo)]
           [#\r (and (send event get-control-down)
                     (redo))]
@@ -598,6 +618,7 @@
                      (if (= (line-end-position (position-line (unbox be))) (unbox be))
                          (add1 (unbox be))
                          (unbox be)))
+          (set! paste-type 'visual-line)
           (visual-cleanup)))
 
       ;; kill selection
