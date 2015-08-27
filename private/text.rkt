@@ -607,7 +607,8 @@
           [_
            (define cur-line (position-line start))
            (define prev-line (sub1 cur-line))
-           (set-position (line-start-position prev-line) end)]))
+           (when (>= prev-line 0)
+             (set-position (line-start-position prev-line) end))]))
 
       ;; copy selection
       (define/private (visual-copy)
