@@ -116,7 +116,8 @@
       (define key-cont #f)
 
       ;; ==== overrides & augments ====
-      (inherit flash-on flash-off line-length hide-caret)
+      (inherit flash-on flash-off line-length hide-caret
+               position-location get-line-spacing)
 
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
@@ -163,19 +164,63 @@
         (define-values (start-val end-val) (values (unbox start) (unbox end)))
         (define cur-line (position-line start-val))
         (define line-empty? (= (line-length cur-line) 0))
-        (cond [(not line-empty?)
-               (hide-caret #f)
+        (cond [(and (not line-empty?)
+                    (not (= (line-end-position cur-line) start-val)))
+               ;; The use of hide-caret here and below for some reason causes
+               ;; the "fake" caret drawn in the on-paint method below to contain
+               ;; some extra blank space. So instead live with a real caret
+               ;; being temporarily painted over our fake one for now.
+               ;(hide-caret #f)
                ;; for a single character/item selection, try to highlight it
                ;; like vim will by offsetting by one
                (define start* start-val)
                (define end*
-                 (if (and (= start-val end-val)
-                          (not (= (line-end-position cur-line) start-val)))
+                 (if (and (= start-val end-val))
                      (add1 end-val)
                      end-val))
                (flash-off)
                (flash-on start* end* #f #t 500000000)]
-              [else (hide-caret #t)]))
+              [else
+               ;(hide-caret #t)
+               (invalidate-bitmap-cache)]))
+
+      ;; override painting to draw an extra selection at the end of the line
+      ;; like vim does.
+      (define/override (on-paint before? dc left top right bottom
+                                 dx dy draw-caret)
+        (super on-paint before? dc left top right bottom dx dy draw-caret)
+        (unless before?
+          (define-values (start end) (values (box #f) (box #f)))
+          (get-position start end)
+          (define-values (start-val end-val) (values (unbox start) (unbox end)))
+          (define cur-line (position-line start-val))
+          (when (and (= start-val end-val)
+                     (= (line-end-position cur-line) start-val))
+            (define-values (x y) (values (box #f) (box #f)))
+            (position-location start-val x y #t #f #t)
+            (define-values (x-val y-val)
+              (values (+ dx (unbox x)) (+ dy (unbox y))))
+            (when (and (<= left x-val right)
+                       ;; the y-coord gets larger as it goes to the bottom
+                       (>= bottom y-val top))
+              (define y-bottom (box #f))
+              (position-location start-val #f y-bottom #f #f #t)
+              (define old-brush (send dc get-brush))
+              (define old-pen (send dc get-pen))
+              (define new-brush
+                (new brush% [color (get-highlight-background-color)]))
+              (define new-pen (new pen% [style 'transparent]))
+              (send dc set-brush new-brush)
+              (send dc set-pen new-pen)
+              ;; assumes fixed-width font
+              (define-values (width _2 _3 _4) (send dc get-text-extent "a"))
+              (send dc draw-rectangle
+                    x-val y-val
+                    width
+                    (- (- (+ dy (unbox y-bottom)) y-val)
+                       (get-line-spacing)))
+              (send dc set-brush old-brush)
+              (send dc set-pen old-pen)))))
 
       ;; ==== private functionality ====
       (inherit get-position set-position
