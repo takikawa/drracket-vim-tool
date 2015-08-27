@@ -241,6 +241,7 @@
 
       ;; ==== private functionality ====
       (inherit get-position set-position
+               get-start-position get-end-position
                move-position
                copy paste kill undo redo delete
                line-start-position line-end-position position-line
@@ -576,8 +577,17 @@
       ;; move selection by line
       ;; : (one-of/c 'down 'up) -> void?
       (define/private (visual-line-move dir)
-        (move-position dir #t)
-        (move-position 'right #t 'line))
+        (define start (get-start-position))
+        (define end (get-end-position))
+        (match dir
+          ['down
+           (define cur-line (position-line end))
+           (define next-line (add1 cur-line))
+           (set-position start (line-end-position next-line))]
+          [_
+           (define cur-line (position-line start))
+           (define prev-line (sub1 cur-line))
+           (set-position (line-start-position prev-line) end)]))
 
       ;; copy selection
       (define/private (visual-copy)
