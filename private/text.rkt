@@ -28,7 +28,8 @@
                    line-start-position line-end-position position-line
                    get-view-size local-to-global
                    find-wordbreak get-admin
-                   get-style-list get-padding)
+                   get-style-list get-padding
+                   flash-on flash-off)
           (super on-local-char on-paint))
       (class/c
         [on-paint on-paint/c]
@@ -114,7 +115,9 @@
       ;; continuation into key handling routine
       (define key-cont #f)
 
-      ;; ==== overrides ====
+      ;; ==== overrides & augments ====
+      (inherit flash-on flash-off line-length hide-caret)
+
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
       (define/override (on-local-char event)
@@ -140,6 +143,39 @@
       ;; such as key release events (FIXME: this may not be exhaustive)
       (define/private (ignored-event? event)
         (eq? (send event get-key-code) 'release))
+
+      ;; override these for manual caret handling
+      (define/augment (after-insert start end)
+        (inner (void) after-insert start end)
+        (do-caret-update))
+
+      (define/augment (after-delete start end)
+        (inner (void) after-delete start end)
+        (do-caret-update))
+
+      (define/augment (after-set-position)
+        (inner (void) after-set-position)
+        (do-caret-update))
+
+      (define/private (do-caret-update)
+        (define-values (start end) (values (box #f) (box #f)))
+        (get-position start end)
+        (define-values (start-val end-val) (values (unbox start) (unbox end)))
+        (define cur-line (position-line start-val))
+        (define line-empty? (= (line-length cur-line) 0))
+        (cond [(not line-empty?)
+               (hide-caret #f)
+               ;; for a single character/item selection, try to highlight it
+               ;; like vim will by offsetting by one
+               (define start* start-val)
+               (define end*
+                 (if (and (= start-val end-val)
+                          (not (= (line-end-position cur-line) start-val)))
+                     (add1 end-val)
+                     end-val))
+               (flash-off)
+               (flash-on start* end* #f #t 500000000)]
+              [else (hide-caret #t)]))
 
       ;; ==== private functionality ====
       (inherit get-position set-position
@@ -282,6 +318,11 @@
             (set-mode! 'command)
             (super on-local-char event)))
 
+      (define/private (do-delete-insertion-point)
+        (define start (box #f))
+        (get-position start)
+        (delete (add1 (unbox start))))
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-simple-command event)
         (match (send event get-key-code)
@@ -320,7 +361,7 @@
 
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
-          [#\x (delete)]
+          [#\x (do-delete-insertion-point)]
           ;; copy & paste & editing
           [#\D (delete-until-end)]
           [#\p (paste)]
@@ -522,5 +563,6 @@
         (values (line-start-position line)
                 (line-end-position line)))
 
-      (super-new))))
+      (super-new)
+      (do-caret-update))))
 
