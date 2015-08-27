@@ -283,12 +283,14 @@
 
       ;; handle deletes
       (define/private (do-delete event)
-        (let ([deleter (lambda (s e) (send this kill 0 s e))])
-          (match (send event get-key-code)
-            ['release (do-delete (get-next-key))]
-            [#\w (do-word deleter)]
-            [#\d (do-line deleter)]
-            [_ (clear-cont!)])))
+        (match (send event get-key-code)
+          ['release (do-delete (get-next-key))]
+          [#\w (do-word (λ (s e) (send this kill 0 s e)))]
+          [#\d (do-line (λ (s e)
+                          (send this kill 0 s e)
+                          (send this move-position 'down)
+                          (send this move-position 'left #f 'line)))]
+          [_ (clear-cont!)]))
 
       ;; handle yanking
       (define/private (do-yank event)
