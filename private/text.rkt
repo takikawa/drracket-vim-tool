@@ -95,12 +95,16 @@
         (list->string (reverse (queue->list search-queue))))
 
       (define/private (set-mode! new-mode)
+        (define old-mode mode)
         (set! mode new-mode)
         (when (eq? new-mode 'visual-line)
           (move-position 'left #f 'line)
           (move-position 'right #t 'line))
         (when (eq? new-mode 'search)
           (set! search-queue (make-queue)))
+        (when (and (eq? new-mode 'command)
+                   (eq? old-mode 'insert))
+          (adjust-caret-eol))
         (update-mode!))
 
       ;; handle the GUI portion of setting the mode line
@@ -111,6 +115,10 @@
       (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
 
       (define mode-padding 3)
+
+      ;; use cmdline-style caret rendering as opposed to the GUI vim
+      ;; style which uses a caret like "I" when in insert mode
+      (define cmdline-caret? #t)
 
       ;; continuation into key handling routine
       (define key-cont #f)
@@ -152,20 +160,29 @@
 
       (define/augment (after-delete start end)
         (inner (void) after-delete start end)
+        (adjust-caret-eol)
         (do-caret-update))
 
       (define/augment (after-set-position)
         (inner (void) after-set-position)
+        ;; Don't allow navigation to the "end of line" position when
+        ;; in command mode, since this goes "off the end" in vim
+        (when (eq? mode 'command)
+          (define-values (start end) (values (box #f) (box #f)))
+          (get-position start end)
+          (define-values (start-val end-val) (values (unbox start) (unbox end)))
+          (when (and (= start-val end-val)
+                     (not (empty-line?))
+                     (at-end-of-line?))
+            (set-position (sub1 start-val) (sub1 end-val))))
         (do-caret-update))
 
       (define/private (do-caret-update)
         (define-values (start end) (values (box #f) (box #f)))
         (get-position start end)
         (define-values (start-val end-val) (values (unbox start) (unbox end)))
-        (define cur-line (position-line start-val))
-        (define line-empty? (= (line-length cur-line) 0))
-        (cond [(and (not line-empty?)
-                    (not (= (line-end-position cur-line) start-val)))
+        (cond [(and (not (empty-line?))
+                    (not (at-end-of-line?)))
                ;; The use of hide-caret here and below for some reason causes
                ;; the "fake" caret drawn in the on-paint method below to contain
                ;; some extra blank space. So instead live with a real caret
@@ -189,7 +206,7 @@
       (define/override (on-paint before? dc left top right bottom
                                  dx dy draw-caret)
         (super on-paint before? dc left top right bottom dx dy draw-caret)
-        (unless before?
+        (when (and cmdline-caret? (not before?))
           (define-values (start end) (values (box #f) (box #f)))
           (get-position start end)
           (define-values (start-val end-val) (values (unbox start) (unbox end)))
@@ -375,17 +392,17 @@
         (match (send event get-key-code)
           ;; insertion
           [#\a (set-mode! 'insert)]
-          [#\A (begin (move-position 'right #f 'line)
-                      (set-mode! 'insert))]
+          [#\A (begin (set-mode! 'insert)
+                      (move-position 'right #f 'line))]
           [#\i (set-mode! 'insert)]
-          [#\I (begin (move-position 'left #f 'line)
-                      (set-mode! 'insert))]
-          [#\O (begin (insert-line-before)
-                      (move-position 'up)
-                      (set-mode! 'insert))]
-          [#\o (begin (insert-line-after)
-                      (move-position 'down)
-                      (set-mode! 'insert))]
+          [#\I (begin (set-mode! 'insert)
+                      (move-position 'left #f 'line))]
+          [#\O (begin (set-mode! 'insert)
+                      (insert-line-before)
+                      (move-position 'up))]
+          [#\o (begin (set-mode! 'insert)
+                      (insert-line-after)
+                      (move-position 'down))]
           ;; modes
           [#\v (set-mode! 'visual)]
           [#\V (set-mode! 'visual-line)]
@@ -609,6 +626,28 @@
         (define line (position-line (unbox b)))
         (values (line-start-position line)
                 (line-end-position line)))
+
+      ;; determine if the current position is at the end of the line
+      (define/private (at-end-of-line?)
+        (define-values (start end) (values (box #f) (box #f)))
+        (get-position start end)
+        (define cur-line (position-line (unbox start)))
+        (= (line-end-position cur-line) (unbox start)))
+
+      ;; determine if the current line is empty
+      (define/private (empty-line?)
+        (define-values (start end) (values (box #f) (box #f)))
+        (get-position start end)
+        (define cur-line (position-line (unbox start)))
+        (= (line-end-position cur-line)
+           (line-start-position cur-line)))
+
+      ;; When in command mode and an edit has been made, we may have to adjust the
+      ;; caret if we're at the end of the line. Call this function to adjust.
+      (define/private (adjust-caret-eol)
+        (when (and (not (empty-line?))
+                   (at-end-of-line?))
+          (move-position 'left)))
 
       (super-new)
       (do-caret-update))))
