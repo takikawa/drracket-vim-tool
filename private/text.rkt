@@ -502,17 +502,17 @@
           (get-position b)
           (set-position (unbox b) 'same)
           (set-mode! 'command)))
-      
+
       ;; insert line after the line the cursor is currently on
       (define/private (insert-line-after)
         (define-values (_start end) (get-current-line-start-end))
         (send this insert "\n" end))
-      
+
       ;; insert line before the line the cursor is currently on
       (define/private (insert-line-before)
         (define-values (start _end) (get-current-line-start-end))
         (send this insert "\n" (if (zero? start) start (sub1 start))))
-      
+
       ;; -> (values int int)
       ;; gets the start and end position of the line at the start of current selection
       (define/private (get-current-line-start-end)
