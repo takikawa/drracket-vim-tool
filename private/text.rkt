@@ -283,6 +283,7 @@
           [#\' (do-mark 'apostrophe (get-next-key))]
           [#\` (do-mark 'backtick (get-next-key))]
           [#\G (move-position 'end #f)]
+          [#\r (do-replace (get-next-key))]
           [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
           [_   (do-simple-command event)]))
 
@@ -410,6 +411,18 @@
         (define start (box #f))
         (get-position start)
         (delete (add1 (unbox start))))
+
+      ;; (is-a?/c key-event%) -> void?
+      ;; FIXME: make this work correctly for visual mode, etc.
+      (define/private (do-replace event)
+        (define kc (send event get-key-code))
+        (when (char? kc)
+          (define pos (get-start-position))
+          (begin-edit-sequence)
+          (do-delete-insertion-point)
+          (insert kc pos)
+          (move-position 'left)
+          (end-edit-sequence)))
 
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-simple-command event)
