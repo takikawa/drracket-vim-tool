@@ -179,7 +179,6 @@
 
       (define/augment (after-delete start end)
         (inner (void) after-delete start end)
-        (adjust-caret-eol)
         (do-caret-update))
 
       (define/augment (after-set-position)
@@ -328,7 +327,8 @@
           [#\d (do-line (λ (s e)
                           (send this kill 0 s e)
                           (send this move-position 'left #f 'line)))]
-          [_ (clear-cont!)]))
+          [_ (clear-cont!)])
+        (adjust-caret-eol))
 
       ;; handle yanking
       (define/private (do-yank event)
@@ -427,7 +427,8 @@
       (define/private (do-delete-insertion-point)
         (define start (box #f))
         (get-position start)
-        (delete (add1 (unbox start))))
+        (delete (add1 (unbox start)))
+        (adjust-caret-eol))
 
       ;; (is-a?/c key-event%) -> void?
       ;; FIXME: make this work correctly for visual mode, etc.
@@ -625,7 +626,8 @@
                [_ (get-position b)]
                [line (position-line (unbox b))]
                [eol (line-end-position line)])
-          (kill 0 (unbox b) eol)))
+          (kill 0 (unbox b) eol)
+          (adjust-caret-eol)))
 
       ;; move selection by line
       ;; : (one-of/c 'down 'up) -> void?
