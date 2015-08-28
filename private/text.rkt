@@ -312,7 +312,6 @@
           [#\w (do-word (λ (s e) (send this kill 0 s e)))]
           [#\d (do-line (λ (s e)
                           (send this kill 0 s e)
-                          (send this move-position 'down)
                           (send this move-position 'left #f 'line)))]
           [_ (clear-cont!)]))
 
@@ -333,8 +332,11 @@
                (define end (get-end-position))
                (define line (position-line end))
                (define pos (line-end-position line))
+               ;; this insertion is needed to make the paste work
                (insert "\n" pos)
                (paste 0 (add1 pos))
+               ;; remove the extra "\n" we have to insert
+               (delete (line-start-position (+ line 2)))
                (end-edit-sequence)]
               [else
                (paste)]))
@@ -383,8 +385,8 @@
           (get-position b)
           (define line (position-line (unbox b)))
           (define start (line-start-position line))
-          (f (if (zero? start) start (sub1 start))
-             (line-end-position line))))
+          (f (if (= line (last-line)) (sub1 start) start)
+             (add1 (line-end-position line)))))
 
       (define-syntax-rule (do-word f)
         (let ([start (box 0)]
