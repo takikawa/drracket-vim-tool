@@ -111,7 +111,8 @@
           (set! search-queue (make-queue)))
         (when (and (eq? new-mode 'command)
                    (eq? old-mode 'insert))
-          (adjust-caret-eol))
+          (unless (at-start-of-line?)
+            (move-position 'left)))
         (update-mode!))
 
       ;; handle the GUI portion of setting the mode line
@@ -694,6 +695,13 @@
         (get-position start end)
         (define cur-line (position-line (unbox start)))
         (= (line-end-position cur-line) (unbox start)))
+
+      ;; determine if the current position is at the start of the line
+      (define/private (at-start-of-line?)
+        (define-values (start end) (values (box #f) (box #f)))
+        (get-position start end)
+        (define cur-line (position-line (unbox start)))
+        (= (line-start-position cur-line) (unbox start)))
 
       ;; determine if the current line is empty
       (define/private (empty-line?)
