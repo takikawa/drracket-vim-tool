@@ -5,7 +5,8 @@
 (require "../private/text.rkt"
          racket/class
          racket/gui/base
-         rackunit)
+         rackunit
+         (for-syntax racket/base))
 
 (provide check-vim)
 
@@ -45,6 +46,8 @@
     (send edit on-local-char (new key-event% [key-code key])))
   (send edit get-text))
 
-(define-syntax-rule (check-vim initial-text keys final-text)
-  (let ([output (do-text-actions initial-text keys)])
-    (check-equal? output final-text)))
+(define-syntax (check-vim stx)
+  (syntax-case stx ()
+    [(_ initial-text keys final-text)
+     #`(let ([output (do-text-actions initial-text keys)])
+         #,(syntax/loc stx (check-equal? output final-text)))]))
