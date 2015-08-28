@@ -257,10 +257,26 @@
               (send dc set-brush old-brush)
               (send dc set-pen old-pen)))))
 
+      ;; override position movement to enforce boundaries of command
+      ;; mode movement
+      (define/override (move-position code [extend? #f] [kind 'simple])
+        (cond [(eq? mode 'command)
+               (define line (position-line (get-start-position)))
+               (cond [(and (empty-line?)
+                           (or (eq? code 'right) (eq? code 'left)))
+                      (void)]
+                     [(and (at-start-of-line?) (eq? code 'left))
+                      (void)]
+                     [(and (= line (last-line)) (eq? code 'down))
+                      (void)]
+                     [(and (zero? line) (eq? code 'up))
+                      (void)]
+                     [else (super move-position code extend? kind)])]
+              [else (super move-position code extend? kind)]))
+
       ;; ==== private functionality ====
       (inherit get-position set-position
                get-start-position get-end-position
-               move-position
                copy paste kill undo redo delete insert
                line-start-position line-end-position position-line
                last-line
@@ -425,10 +441,9 @@
             (super on-local-char event)))
 
       (define/private (do-delete-insertion-point)
-        (define start (box #f))
-        (get-position start)
-        (delete (add1 (unbox start)))
-        (adjust-caret-eol))
+        (unless (empty-line?)
+          (delete (add1 (get-start-position)))
+          (adjust-caret-eol)))
 
       ;; (is-a?/c key-event%) -> void?
       ;; FIXME: make this work correctly for visual mode, etc.

@@ -43,6 +43,34 @@
  @~a{#lang
      bcdef})
 
+(check-vim
+ @~a{#lang racket}
+ '(#\space #\k #\x)
+ @~a{#ang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\space #\j #\x)
+ @~a{#ang racket})
+
+(check-vim
+ @~a{#lang racket
+
+     x}
+ '(#\j #\h #\x)
+ @~a{#lang racket
+
+     x})
+
+(check-vim
+ @~a{x
+
+     #lang racket}
+ '(#\j #\l #\x)
+ @~a{x
+
+     #lang racket})
+
 ;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
