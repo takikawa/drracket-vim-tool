@@ -9,21 +9,30 @@
 
 (provide check-vim)
 
+;; A mock frame% that pretends to support vim features
+(define mock-frame%
+  (class frame%
+    (super-new)
+    (define/public (set-vim-status-message arg) (void))))
+
+;; Need these only so editing actually works in the text%
+(define frame (new mock-frame% [label "testing"]))
+(define e-c (new editor-canvas% [parent frame]))
+
 ;; A mock text% class that pretends to support DrRacket features
 (define mock-text%
   (class text%
     (super-new)
-    (define/public (get-tab) (void))
+    (define/public (get-tab)
+      (new (class object%
+             (super-new)
+             (define/public (get-frame) frame))))
     (define/public (forward-sexp) (void))
     (define/public (backward-sexp) (void))
     (define/public (set-searching-state) (void))
     (define/public (get-search-hit-count) (void))
     (define/public (get-replace-search-hit) (void))
     (define/public (search-updates-pending?) (void))))
-
-;; Need these only so editing actually works in the text%
-(define frame (new frame% [label "testing"]))
-(define e-c (new editor-canvas% [parent frame]))
 
 ;; string (listof char) -> (is-a?/c text%)
 (define (do-text-actions initial-text keys)

@@ -14,6 +14,13 @@
  @~a{#lang racket
      bcdef})
 
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\l #\i #\a #\b escape #\x)
+ @~a{#alang racket
+     abcdef})
+
 ;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
