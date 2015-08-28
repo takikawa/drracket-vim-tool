@@ -472,6 +472,13 @@
           [#\j (move-position 'down)]
           [#\k (move-position 'up)]
           [#\l (move-position 'right)]
+          [#\space
+           (define-values (start end) (get-current-line-start-end))
+           (cond [(= (sub1 end) (get-start-position))
+                  (move-position 'down)
+                  (move-position 'left #f 'line)]
+                 [else
+                  (move-position 'right)])]
           [#\w (move-position 'right #f 'word)]
           [#\0 (move-position 'left #f 'line)]
           [#\$ (move-position 'right #f 'line)]

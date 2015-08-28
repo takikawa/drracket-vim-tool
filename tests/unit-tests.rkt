@@ -29,6 +29,20 @@
      abcdef
      ()})
 
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\space #\x #\space #\x #\space #\D)
+ @~a{#ag
+     abcdef})
+
+(check-vim
+ @~a{#lang
+     abcdef}
+ '(#\space #\space #\space #\space #\space #\x)
+ @~a{#lang
+     bcdef})
+
 ;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
