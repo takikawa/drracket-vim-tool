@@ -39,6 +39,8 @@
         [vim? (->m boolean?)]
         [toggle-vim! (->m void?)]))])
 
+(provide override-vim-emulation-preference?)
+
 (define/contract vim-prompt-tag
   (prompt-tag/c (-> (is-a?/c key-event%) any))
   (make-continuation-prompt-tag))
@@ -46,9 +48,14 @@
 (define vim-emulation<%>
   (interface () vim?  toggle-vim!))
 
+(define-local-member-name override-vim-emulation-preference?)
+
 (define vim-emulation-mixin
   (λ (cls)
     (class* cls (vim-emulation<%>)
+
+      ;; for testing purposes
+      (init [override-vim-emulation-preference? #f])
 
       ;; ==== public state & accessors ====
       (inherit get-tab invalidate-bitmap-cache)
@@ -112,7 +119,12 @@
         (define frame (send (get-tab) get-frame))
         (send frame set-vim-status-message (mode-string)))
 
-      (define vim-emulation? (preferences:get 'drracket:vim-emulation?))
+      (unless (preferences:default-set? 'drracket:vim-emulation?)
+        (preferences:set-default 'drracket:vim-emulation? #f boolean?))
+
+      (define vim-emulation?
+        (or override-vim-emulation-preference?
+            (preferences:get 'drracket:vim-emulation?)))
 
       (define mode-padding 3)
 
