@@ -6,7 +6,7 @@
          racket/format
          rackunit)
 
-;; basic movement and editing
+;;; basic movement and editing
 (check-vim
  @~a{#lang racket
      abcdef}
@@ -21,7 +21,7 @@
  @~a{#alang racket
      abcdef})
 
-;; line deletion / yanking / pasting
+;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
      abcdef}
