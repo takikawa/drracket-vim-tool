@@ -123,7 +123,7 @@
       ;; continuation into key handling routine
       (define key-cont #f)
 
-      ;; paste-type : (or/c 'normal 'visual-line)
+      ;; paste-type : (or/c 'normal 'line)
       ;; Controls how pasting should behave based on how the copy was done
       ;; FIXME: once paste buffers are supported, this should map buffers
       ;;        to paste types instead
@@ -328,7 +328,7 @@
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste)
-        (cond [(eq? paste-type 'visual-line)
+        (cond [(eq? paste-type 'line)
                (begin-edit-sequence)
                (define end (get-end-position))
                (define line (position-line end))
@@ -379,6 +379,7 @@
 
       (define-syntax-rule (do-line f)
         (let ([b (box 0)])
+          (set! paste-type 'line)
           (get-position b)
           (define line (position-line (unbox b)))
           (define start (line-start-position line))
