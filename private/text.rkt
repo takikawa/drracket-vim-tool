@@ -268,7 +268,8 @@
 
       ;; provide the next key later
       (define/private (get-next-key)
-        (call/comp (λ (k) (abort/cc vim-prompt-tag k))))
+        (call/comp (λ (k) (abort/cc vim-prompt-tag k))
+                   vim-prompt-tag))
 
       ;; handles a multi-character command
       ;; (is-a?/c key-event%) -> void?
