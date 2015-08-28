@@ -28,6 +28,17 @@
  '(#\d #\d)
  @~a{abcdef})
 
+;; next two tests for issue #20
+(check-vim
+ @~a{#lang racket}
+ '(#\d #\d)
+ @~a{})
+
+(check-vim
+ @~a{}
+ '(#\d #\d)
+ @~a{})
+
 (check-vim
  @~a{#lang racket
      abcdef}

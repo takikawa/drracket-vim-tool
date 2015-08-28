@@ -400,7 +400,10 @@
           (get-position b)
           (define line (position-line (unbox b)))
           (define start (line-start-position line))
-          (f (if (= line (last-line)) (sub1 start) start)
+          (f (if (and (= line (last-line))
+                      (not (zero? line)))
+                 (sub1 start)
+                 start)
              (add1 (line-end-position line)))))
 
       (define-syntax-rule (do-word f)
