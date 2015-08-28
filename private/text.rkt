@@ -461,7 +461,8 @@
       (define/private (do-simple-command event)
         (match (send event get-key-code)
           ;; insertion
-          [#\a (set-mode! 'insert)]
+          [#\a (begin (set-mode! 'insert)
+                      (move-position 'right))]
           [#\A (begin (set-mode! 'insert)
                       (move-position 'right #f 'line))]
           [#\i (set-mode! 'insert)]

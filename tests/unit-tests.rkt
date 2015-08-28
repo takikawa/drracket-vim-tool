@@ -71,6 +71,16 @@
 
      #lang racket})
 
+(check-vim
+ @~a{#lang racket}
+ '(#\a #\a #\b #\c)
+ @~a{#abclang racket})
+
+(check-vim
+ @~a{}
+ '(#\a #\a #\b #\c)
+ @~a{abc})
+
 ;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
