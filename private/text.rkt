@@ -264,6 +264,7 @@
 
       ;; make sure mode is consistent when focus comes back
       (define/override (on-focus in?)
+        (super on-focus in?)
         (when (and (vim?) in? (not (eq? parent-frame 'uninitialized)))
           (update-mode!)))
 
