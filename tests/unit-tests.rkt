@@ -167,6 +167,13 @@
      abcdef
      #lang racket})
 
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\y #\space #\j #\p)
+ @~a{#lang racket
+     a#bcdef})
+
 ;;; undo/redo
 (check-vim
  @~a{#lang racket
