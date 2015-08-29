@@ -282,7 +282,8 @@
 
       ;; make sure mode is consistent when focus comes back
       (define/override (on-focus in?)
-        (when in? (update-mode!)))
+        (when (and in? (not (eq? parent-frame 'uninitialized)))
+          (update-mode!)))
 
       ;; ==== private functionality ====
       (inherit get-position set-position
