@@ -14,7 +14,7 @@ before_install:
 install:
 - curl -L -o master.zip https://github.com/takikawa/drracket-vim-tool/archive/master.zip
 - unzip master.zip
-- raco pkg install drracket-vim-tool/
+- raco pkg install -n drracket-vim-tool drracket-vim-tool-master/
 
 script:
 - racket -l drracket-vim-tool/tests/unit-tests
