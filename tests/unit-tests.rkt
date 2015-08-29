@@ -130,6 +130,11 @@
  '(#\d #\d)
  @~a{abcdef})
 
+(check-vim
+ @~a{#lang racket}
+ '(#\v #\l #\l #\l #\y #\p)
+ @~a{##lanlang racket})
+
 ;; next two tests for issue #20
 (check-vim
  @~a{#lang racket}

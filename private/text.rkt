@@ -98,6 +98,12 @@
         (when (eq? new-mode 'visual-line)
           (move-position 'left #f 'line)
           (move-position 'right #t 'line))
+        (when (and (eq? new-mode 'visual)
+                   (= (get-start-position)
+                      (get-end-position)))
+          ;; extend selection when entering visual mode to avoid having
+          ;; nothing selected initially
+          (move-position 'right #t))
         (when (eq? new-mode 'search)
           (set! search-queue (make-queue)))
         (when (and (eq? new-mode 'command)
