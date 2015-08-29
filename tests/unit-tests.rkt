@@ -88,6 +88,11 @@
  @~a{#lang racket
      fooba})
 
+(check-vim
+ @~a{(    )}
+ '(#\% #\x)
+ @~a{(    })
+
 ;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket

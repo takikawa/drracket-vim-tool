@@ -632,8 +632,7 @@
           [(or #\) #\] #\})
            (backward-sexp (add1 pos))]
           [(or #\( #\[ #\{)
-           (forward-sexp pos)
-           (move-position 'left)]
+           (forward-sexp pos)]
           [_ (void)]))
 
       ;; -> void?

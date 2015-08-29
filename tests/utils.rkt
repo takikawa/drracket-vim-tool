@@ -24,10 +24,8 @@
 
 ;; A mock text% class that pretends to support DrRacket features
 (define mock-text%
-  (class text:searching%
-    (super-new)
-    (define/public (forward-sexp) (void))
-    (define/public (backward-sexp) (void))))
+  (class (text:searching-mixin racket:text%)
+    (super-new)))
 
 ;; string (listof (U char symbol key-event)) -> (is-a?/c text%)
 (define (do-text-actions initial-text keys)
