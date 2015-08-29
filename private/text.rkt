@@ -280,6 +280,10 @@
                      [else (super move-position code extend? kind)])]
               [else (super move-position code extend? kind)]))
 
+      ;; make sure mode is consistent when focus comes back
+      (define/override (on-focus in?)
+        (when in? (update-mode!)))
+
       ;; ==== private functionality ====
       (inherit get-position set-position
                get-start-position get-end-position
