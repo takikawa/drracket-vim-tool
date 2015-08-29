@@ -349,6 +349,7 @@
             [#\y (do-line copier)]
             [#\% (do-matching-paren
                   (λ (_ s e) (and s e (copier s e))))]
+            [#\space (do-character copier)]
             [_ (clear-cont!)])))
 
       ;; handle pasting, esp. visual-line type pasting
@@ -437,6 +438,13 @@
           (get-position end)
           (find-wordbreak start end 'selection)
           (f (unbox start) (unbox end))))
+
+      (define-syntax-rule (do-character f)
+        (let ([start (box 0)]
+              [end (box 0)])
+          (get-position start)
+          (get-position end)
+          (f (unbox start) (+ 1 (unbox end)))))
 
       ;; clear the command continuation
       (define/private (clear-cont!)
