@@ -88,11 +88,6 @@
 
 (preferences:set-default 'drracket:vim-emulation? #f boolean?)
 (drracket:get/extend:extend-definitions-text vim-emulation-mixin)
-(drracket:get/extend:extend-interactions-text
- ;; init order gets messed up without this dummy mixin
- (λ (cls)
-   (class (vim-emulation-mixin cls)
-     (init context)
-     (super-new [context context]))))
+(drracket:get/extend:extend-interactions-text vim-emulation-mixin)
 (drracket:get/extend:extend-unit-frame vim-frame-mixin)
 (drracket:get/extend:extend-tab vim-tab-mixin)
