@@ -81,6 +81,13 @@
  '(#\a #\a #\b #\c)
  @~a{abc})
 
+(check-vim
+ @~a{#lang racket
+     foobar}
+ '(#\G #\x)
+ @~a{#lang racket
+     fooba})
+
 ;;; line deletion / yanking / pasting
 (check-vim
  @~a{#lang racket

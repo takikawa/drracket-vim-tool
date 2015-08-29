@@ -322,7 +322,6 @@
           [#\m (do-mark 'save (get-next-key))]
           [#\' (do-mark 'apostrophe (get-next-key))]
           [#\` (do-mark 'backtick (get-next-key))]
-          [#\G (move-position 'end #f)]
           [#\r #:when (not (send event get-control-down))
                (do-replace (get-next-key))]
           [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
@@ -512,6 +511,7 @@
           [#\$ (move-position 'right #f 'line)]
           [#\^ (move-position 'left #f 'line)]
           [#\% (move-matching-paren)]
+          [#\G (move-position 'end #f)]
 
           ;; editing
           [#\J (delete-next-newline-and-whitespace)]
