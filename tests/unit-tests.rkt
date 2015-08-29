@@ -93,7 +93,37 @@
  '(#\% #\x)
  @~a{(    })
 
-;;; line deletion / yanking / pasting
+(check-vim
+ @~a{(    ) a}
+ '(#\% #\x)
+ @~a{(     a})
+
+(check-vim
+ @~a{(    )}
+ '(#\l #\% #\x)
+ @~a{(   )})
+
+(check-vim
+ @~a{(    )}
+ '(#\l #\l #\l #\l #\l #\% #\x)
+ @~a{    )})
+
+(check-vim
+ @~a{(    )a}
+ '(#\d #\%)
+ @~a{a})
+
+(check-vim
+ @~a{(    )a}
+ '(#\l #\l #\l #\l #\l #\d #\%)
+ @~a{a})
+
+(check-vim
+ @~a{(    )a}
+ '(#\y #\% #\% #\p)
+ @~a{(    )(    )a})
+
+;;; deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
      abcdef}

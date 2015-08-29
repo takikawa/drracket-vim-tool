@@ -38,9 +38,7 @@
 
 (provide parent-frame)
 
-(define/contract vim-prompt-tag
-  (prompt-tag/c (-> (is-a?/c key-event%) any))
-  (make-continuation-prompt-tag))
+(define vim-prompt-tag (make-continuation-prompt-tag))
 
 (define-local-member-name parent-frame)
 
@@ -136,20 +134,19 @@
       (define/override (on-local-char event)
         (if (and (vim?)
                  (not (ignored-event? event)))
-            (if key-cont
-                (key-cont event)
-                (call/prompt
-                 (λ ()
-                   (cond [(eq? mode 'command) (do-command event)]
-                         [(eq? mode 'insert)  (do-insert event)]
-                         [(eq? mode 'visual)  (do-visual event)]
-                         [(eq? mode 'visual-line) (do-visual-line event)]
-                         [(eq? mode 'search) (do-search event)]
-                         [(eq? mode 'ex) (do-ex event)]
-                         [else (error "Unimplemented mode")])
-                   (clear-cont!))
-                 vim-prompt-tag
-                 (λ (k) (set! key-cont k))))
+            (call/prompt
+             (λ ()
+               (cond [key-cont (key-cont event)]
+                     [(eq? mode 'command) (do-command event)]
+                     [(eq? mode 'insert)  (do-insert event)]
+                     [(eq? mode 'visual)  (do-visual event)]
+                     [(eq? mode 'visual-line) (do-visual-line event)]
+                     [(eq? mode 'search) (do-search event)]
+                     [(eq? mode 'ex) (do-ex event)]
+                     [else (error "Unimplemented mode")])
+               (clear-cont!))
+             vim-prompt-tag
+             (λ (k) (set! key-cont k)))
             (super on-local-char event)))
 
       ;; some events are ignored because they're irrelevant for vim emulation,
@@ -277,7 +274,7 @@
                local-to-global find-wordbreak
                begin-edit-sequence end-edit-sequence
                get-character find-newline
-               forward-sexp backward-sexp)
+               get-forward-sexp get-backward-sexp)
 
       ;; mode string for mode line
       ;; -> string?
@@ -332,11 +329,13 @@
       ;; handle deletes
       (define/private (do-delete event)
         (match (send event get-key-code)
-          ['release (do-delete (get-next-key))]
+          [(? symbol?) (do-delete (get-next-key))]
           [#\w (do-word (λ (s e) (send this kill 0 s e)))]
           [#\d (do-line (λ (s e)
                           (send this kill 0 s e)
                           (send this move-position 'left #f 'line)))]
+          [#\% (do-matching-paren
+                (λ (_ s e) (and s e (send this kill 0 s e))))]
           [_ (clear-cont!)])
         (adjust-caret-eol))
 
@@ -345,9 +344,11 @@
         (set! paste-type 'normal)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
           (match (send event get-key-code)
-            ['release (do-yank (get-next-key))]
+            [(? symbol?) (do-yank (get-next-key))]
             [#\w (do-word copier)]
             [#\y (do-line copier)]
+            [#\% (do-matching-paren
+                  (λ (_ s e) (and s e (copier s e))))]
             [_ (clear-cont!)])))
 
       ;; handle pasting, esp. visual-line type pasting
@@ -364,7 +365,20 @@
                (delete (line-start-position (+ line 2)))
                (end-edit-sequence)]
               [else
-               (paste)]))
+               (define old-pos (get-start-position))
+               (define line (position-line old-pos))
+               (define end (line-end-position line))
+               (set-position (add1 old-pos))
+               (cond [;; caret is as far right as it can go in command
+                      (= (sub1 end) (get-start-position))
+                      (begin-edit-sequence)
+                      (insert " " end) ; dummy character, gets deleted
+                      (set-position (add1 old-pos))
+                      (paste)
+                      (delete (line-end-position line))
+                      (adjust-caret-eol)
+                      (end-edit-sequence)]
+                     [(paste)])]))
 
       ;; handle mark setting and navigation
       (define/private (do-mark kind next-key)
@@ -493,7 +507,11 @@
           [#\0 (move-position 'left #f 'line)]
           [#\$ (move-position 'right #f 'line)]
           [#\^ (move-position 'left #f 'line)]
-          [#\% (move-matching-paren)]
+          [#\% (do-matching-paren
+                (λ (dir s e)
+                  (match dir
+                    ['backward (set-position s)]
+                    ['forward  (set-position (sub1 e))])))]
           [#\G (move-position 'end #f)]
 
           ;; editing
@@ -622,17 +640,18 @@
           (set-position newline-pos)
           (end-edit-sequence)))
 
-      ;; implements the behavior of "%" in vim
-      (define/private (move-matching-paren)
+      ;; implements the behavior of "%" and friends in vim
+      (define/private (do-matching-paren action)
         (define pos-box (box 0))
         (get-position pos-box)
         (define pos (unbox pos-box))
         (define char (get-character pos))
         (match char
           [(or #\) #\] #\})
-           (backward-sexp (add1 pos))]
+           (action 'backward (get-backward-sexp (add1 pos))
+                             (add1 pos))]
           [(or #\( #\[ #\{)
-           (forward-sexp pos)]
+           (action 'forward pos (get-forward-sexp pos))]
           [_ (void)]))
 
       ;; -> void?
