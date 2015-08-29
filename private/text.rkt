@@ -563,7 +563,7 @@
       (inherit set-searching-state
                get-search-hit-count
                get-replace-search-hit
-               search-updates-pending?)
+               finish-pending-search-work)
 
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
@@ -584,21 +584,15 @@
 
       (define/private (do-next-search [start-at-next-word #t])
         (when search-string
-          (define old-pos (box 0))
-          (get-position old-pos)
+          (define old-pos (get-start-position))
           (when start-at-next-word
             (move-position 'right #f 'word))
           ;; set the search state to get the next hit
           (set-searching-state search-string #f #t #f)
-          (let loop ()
-            (when (search-updates-pending?)
-              (yield)
-              (loop)))
+          (finish-pending-search-work)
           (if (get-replace-search-hit)
               (set-position (get-replace-search-hit))
-              (set-position (unbox old-pos)))
-          ;; immediately clear the state to remove bubbles
-          (set-searching-state #f #t #f #f)))
+              (set-position old-pos))))
 
       ;; (is-a?/c key-event%) -> void
       ;; handle ex commands
