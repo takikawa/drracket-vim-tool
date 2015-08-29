@@ -28,7 +28,7 @@
     (define/public (forward-sexp) (void))
     (define/public (backward-sexp) (void))))
 
-;; string (listof char) -> (is-a?/c text%)
+;; string (listof (U char symbol key-event)) -> (is-a?/c text%)
 (define (do-text-actions initial-text keys)
   (define edit (new (vim-emulation-mixin mock-text%)
                     [override-vim-emulation-preference? #t]))
@@ -36,8 +36,13 @@
   (send e-c set-editor edit)
   (send edit insert initial-text 0)
   (send edit set-position 0)
+  (send edit set-max-undo-history 'forever)
   (for ([key (in-list keys)])
-    (send edit on-local-char (new key-event% [key-code key])))
+    (define ke
+      (if (is-a? key key-event%)
+          key
+          (new key-event% [key-code key])))
+    (send edit on-local-char ke))
   (send edit get-text))
 
 (define-syntax (check-vim stx)

@@ -323,7 +323,8 @@
           [#\' (do-mark 'apostrophe (get-next-key))]
           [#\` (do-mark 'backtick (get-next-key))]
           [#\G (move-position 'end #f)]
-          [#\r (do-replace (get-next-key))]
+          [#\r #:when (not (send event get-control-down))
+               (do-replace (get-next-key))]
           [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
           [_   (do-simple-command event)]))
 

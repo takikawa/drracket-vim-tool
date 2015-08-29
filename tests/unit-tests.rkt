@@ -1,4 +1,4 @@
-#lang at-exp racket/base
+#lang at-exp racket/gui
 
 ;; Tests for DrRacket vim plugin
 
@@ -120,7 +120,21 @@
      abcdef
      #lang racket})
 
-;; searching
+;;; undo/redo
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\d #\d #\u)
+ @~a{#lang racket
+     abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ `(#\d #\d #\u ,(new key-event% [key-code #\r] [control-down #t]))
+ @~a{abcdef})
+
+;;; searching
 (check-vim
  @~a{#lang racket
      banana}
