@@ -1,7 +1,7 @@
 DrRacket Vim Tool
 =================
 
-This plugin adds vim-like editing to the definitions area of DrRacket.
+This plugin adds vim-like editing to DrRacket.
 
 The plugin is still far from feature-complete, so bug reports and pull
 requests appreciated!
