@@ -39,7 +39,8 @@
         [vim? (->m boolean?)]
         [toggle-vim! (->m void?)]))])
 
-(provide override-vim-emulation-preference?)
+(provide parent-frame
+         override-vim-emulation-preference?)
 
 (define/contract vim-prompt-tag
   (prompt-tag/c (-> (is-a?/c key-event%) any))
@@ -48,7 +49,9 @@
 (define vim-emulation<%>
   (interface () vim?  toggle-vim!))
 
-(define-local-member-name override-vim-emulation-preference?)
+(define-local-member-name
+  parent-frame
+  override-vim-emulation-preference?)
 
 (define vim-emulation-mixin
   (λ (cls)
@@ -58,13 +61,17 @@
       (init [override-vim-emulation-preference? #f])
 
       ;; ==== public state & accessors ====
-      (inherit get-tab invalidate-bitmap-cache)
+      (inherit invalidate-bitmap-cache)
 
       (define/public-final (vim?) vim-emulation?)
 
       (define/public-final (toggle-vim!)
         (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
         (set! vim-emulation? (not vim-emulation?)))
+
+      ;; this field should be initialized when the tab containing
+      ;; this editor is created
+      (field [parent-frame 'uninitialized])
 
       ;;; Private state
 
@@ -117,8 +124,7 @@
 
       ;; handle the GUI portion of setting the mode line
       (define/private (update-mode!)
-        (define frame (send (get-tab) get-frame))
-        (send frame set-vim-status-message (mode-string)))
+        (send parent-frame set-vim-status-message (mode-string)))
 
       (unless (preferences:default-set? 'drracket:vim-emulation?)
         (preferences:set-default 'drracket:vim-emulation? #f boolean?))
@@ -590,8 +596,8 @@
       (define/private (run-ex-command)
         (match (list->string (gvector->list ex-queue))
           ["w" (send this save-file)]
-          ["tabnext" (send (send (get-tab) get-frame) next-tab)]
-          ["tabprev" (send (send (get-tab) get-frame) prev-tab)]
+          ["tabnext" (send parent-frame next-tab)]
+          ["tabprev" (send parent-frame prev-tab)]
           [_ (void)])
         (set-mode! 'command)
         (set! ex-queue (gvector)))

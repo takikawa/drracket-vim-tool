@@ -51,9 +51,34 @@
 
     (super-new)))
 
+(define vim-tab-mixin
+  (λ (cls)
+    (class cls
+      (define initialized? #f)
+
+      (inherit get-frame get-ints get-defs)
+
+      (super-new)
+
+      ;; overriden just to inform us when the tab becomes active
+      (define/override (enable-evaluation)
+        (super enable-evaluation)
+        (unless initialized?
+          ;; initialize editor state
+          (set-field! parent-frame (get-defs) (get-frame))
+          (set-field! parent-frame (get-ints) (get-frame))
+          (set! initialized? #t))))))
+
 (define (phase1) (void))
 (define (phase2) (void))
 
 (preferences:set-default 'drracket:vim-emulation? #f boolean?)
 (drracket:get/extend:extend-definitions-text vim-emulation-mixin)
+(drracket:get/extend:extend-interactions-text
+ ;; init order gets messed up without this dummy mixin
+ (λ (cls)
+   (class (vim-emulation-mixin cls)
+     (init context)
+     (super-new [context context]))))
 (drracket:get/extend:extend-unit-frame vim-frame-mixin)
+(drracket:get/extend:extend-tab vim-tab-mixin)
