@@ -522,7 +522,7 @@
                     (redo))]
           ;; search
           [#\/ (set-mode! 'search)]
-          [#\n (do-next-search)]
+          [#\n (do-next-search #t)]
           [_   (void)]))
 
       ;; (is-a?/c key-event%) -> void?
@@ -582,17 +582,21 @@
           [(? char?) (enqueue-char! key)]
           [_ (void)]))
 
-      (define/private (do-next-search [start-at-next-word #t])
+      (define/private (do-next-search [continuing? #f])
         (when search-string
-          (define old-pos (get-start-position))
-          (when start-at-next-word
-            (move-position 'right #f 'word))
           ;; set the search state to get the next hit
-          (set-searching-state search-string #f #t #f)
-          (finish-pending-search-work)
-          (if (get-replace-search-hit)
-              (set-position (get-replace-search-hit))
-              (set-position old-pos))))
+          (cond [continuing?
+                 (define old-pos (get-start-position))
+                 (move-position 'right)
+                 (yield) ; to allow search to update
+                 (if (get-replace-search-hit)
+                     (set-position (get-replace-search-hit))
+                     (set-position old-pos))]
+                [else
+                 (set-searching-state search-string #f #t #f)
+                 (finish-pending-search-work)
+                 (when (get-replace-search-hit)
+                   (set-position (get-replace-search-hit)))])))
 
       ;; (is-a?/c key-event%) -> void
       ;; handle ex commands

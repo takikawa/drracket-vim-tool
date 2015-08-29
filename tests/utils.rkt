@@ -3,6 +3,7 @@
 ;; Test harness for drracket vim mixin
 
 (require "../private/text.rkt"
+         framework
          racket/class
          racket/gui/base
          rackunit
@@ -22,23 +23,16 @@
 
 ;; A mock text% class that pretends to support DrRacket features
 (define mock-text%
-  (class text%
+  (class text:searching%
     (super-new)
-    (define/public (get-tab)
-      (new (class object%
-             (super-new)
-             (define/public (get-frame) frame))))
     (define/public (forward-sexp) (void))
-    (define/public (backward-sexp) (void))
-    (define/public (set-searching-state) (void))
-    (define/public (get-search-hit-count) (void))
-    (define/public (get-replace-search-hit) (void))
-    (define/public (search-updates-pending?) (void))))
+    (define/public (backward-sexp) (void))))
 
 ;; string (listof char) -> (is-a?/c text%)
 (define (do-text-actions initial-text keys)
   (define edit (new (vim-emulation-mixin mock-text%)
                     [override-vim-emulation-preference? #t]))
+  (set-field! parent-frame edit frame)
   (send e-c set-editor edit)
   (send edit insert initial-text 0)
   (send edit set-position 0)

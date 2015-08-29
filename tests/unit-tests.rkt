@@ -120,4 +120,12 @@
      abcdef
      #lang racket})
 
+;; searching
+(check-vim
+ @~a{#lang racket
+     banana}
+ '(#\/ #\b #\a #\n #\a #\n #\a #\return #\x)
+ @~a{#lang racket
+     anana})
+
 (exit)
