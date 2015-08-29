@@ -543,7 +543,6 @@
 
       ;; searching
       ;; TODO: - backwards search
-      ;;       - fix weird behavior when no more hits remain
       (inherit set-searching-state
                get-search-hit-count
                get-replace-search-hit
@@ -557,8 +556,9 @@
           ['escape (set-mode! 'command)]
           [#\return
            (define the-string (search-queue->string))
-           (set! search-string the-string)
-           (do-next-search)
+           (unless (= (string-length the-string) 0)
+             (set! search-string the-string)
+             (do-next-search))
            (set-mode! 'command)]
           [#\backspace
            (unless (queue-empty? search-queue)
