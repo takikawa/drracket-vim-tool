@@ -11,17 +11,31 @@
 
 (define vim-frame-mixin
   (mixin (drracket:unit:frame<%>) ()
+    (unless (preferences:default-set? 'drracket:vim-emulation?)
+      (preferences:set-default 'drracket:vim-emulation? #f boolean?))
 
-    (inherit get-definitions-text)
+    (define vim-emulation?
+      (preferences:get 'drracket:vim-emulation?))
+
+    (define/public (vim?) vim-emulation?)
+
+    (define/private (toggle-vim!)
+      (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
+      (set! vim-emulation? (not vim-emulation?))
+      ;; trigger redraws to get rid of vim effects
+      (send (get-definitions-text) invalidate-bitmap-cache)
+      (send (get-interactions-text) invalidate-bitmap-cache))
+
+    (inherit get-definitions-text
+             get-interactions-text)
 
     (define/override (edit-menu:between-find-and-preferences edit-menu)
       (super edit-menu:between-find-and-preferences edit-menu)
       (new checkable-menu-item%
            [label "Vim Mode"]
            [parent edit-menu]
-           [callback
-             (λ (i e) (send (get-definitions-text) toggle-vim!))]
-           [checked (send (get-definitions-text) vim?)]))
+           [callback (λ (i e) (toggle-vim!))]
+           [checked (vim?)]))
 
     ;; for the vim status (mode text, etc.)
     ;; TODO: this pattern is really horrible

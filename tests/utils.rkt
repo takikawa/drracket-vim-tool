@@ -15,6 +15,7 @@
 (define mock-frame%
   (class frame%
     (super-new)
+    (define/public (vim?) #t)
     (define/public (set-vim-status-message arg) (void))))
 
 ;; Need these only so editing actually works in the text%
@@ -30,8 +31,7 @@
 
 ;; string (listof (U char symbol key-event)) -> (is-a?/c text%)
 (define (do-text-actions initial-text keys)
-  (define edit (new (vim-emulation-mixin mock-text%)
-                    [override-vim-emulation-preference? #t]))
+  (define edit (new (vim-emulation-mixin mock-text%)))
   (set-field! parent-frame edit frame)
   (send e-c set-editor edit)
   (send edit insert initial-text 0)

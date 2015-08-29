@@ -16,7 +16,6 @@
        void?))
 
 (provide/contract
-  [vim-emulation<%> interface?]
   [vim-emulation-mixin
     (-> (class/c
           (inherit invalidate-bitmap-cache
@@ -35,39 +34,26 @@
         [on-paint on-paint/c]
         [on-local-char on-local-char/c]
         (override [on-paint on-paint/c]
-                  [on-local-char on-local-char/c])
-        [vim? (->m boolean?)]
-        [toggle-vim! (->m void?)]))])
+                  [on-local-char on-local-char/c])))])
 
-(provide parent-frame
-         override-vim-emulation-preference?)
+(provide parent-frame)
 
 (define/contract vim-prompt-tag
   (prompt-tag/c (-> (is-a?/c key-event%) any))
   (make-continuation-prompt-tag))
 
-(define vim-emulation<%>
-  (interface () vim?  toggle-vim!))
-
-(define-local-member-name
-  parent-frame
-  override-vim-emulation-preference?)
+(define-local-member-name parent-frame)
 
 (define vim-emulation-mixin
   (λ (cls)
-    (class* cls (vim-emulation<%>)
-
-      ;; for testing purposes
-      (init [override-vim-emulation-preference? #f])
+    (class cls
 
       ;; ==== public state & accessors ====
       (inherit invalidate-bitmap-cache)
 
-      (define/public-final (vim?) vim-emulation?)
-
-      (define/public-final (toggle-vim!)
-        (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
-        (set! vim-emulation? (not vim-emulation?)))
+      (define/public-final (vim?)
+        (and (not (eq? parent-frame 'uninitialized))
+             (send parent-frame vim?)))
 
       ;; this field should be initialized when the tab containing
       ;; this editor is created
@@ -126,13 +112,6 @@
       (define/private (update-mode!)
         (send parent-frame set-vim-status-message (mode-string)))
 
-      (unless (preferences:default-set? 'drracket:vim-emulation?)
-        (preferences:set-default 'drracket:vim-emulation? #f boolean?))
-
-      (define vim-emulation?
-        (or override-vim-emulation-preference?
-            (preferences:get 'drracket:vim-emulation?)))
-
       (define mode-padding 3)
 
       ;; use cmdline-style caret rendering as opposed to the GUI vim
@@ -155,7 +134,7 @@
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
       (define/override (on-local-char event)
-        (if (and vim-emulation?
+        (if (and (vim?)
                  (not (ignored-event? event)))
             (if key-cont
                 (key-cont event)
@@ -181,25 +160,28 @@
       ;; override these for manual caret handling
       (define/augment (after-insert start end)
         (inner (void) after-insert start end)
-        (do-caret-update))
+        (when (vim?)
+          (do-caret-update)))
 
       (define/augment (after-delete start end)
         (inner (void) after-delete start end)
-        (do-caret-update))
+        (when (vim?)
+          (do-caret-update)))
 
       (define/augment (after-set-position)
         (inner (void) after-set-position)
-        ;; Don't allow navigation to the "end of line" position when
-        ;; in command mode, since this goes "off the end" in vim
-        (when (eq? mode 'command)
-          (define-values (start end) (values (box #f) (box #f)))
-          (get-position start end)
-          (define-values (start-val end-val) (values (unbox start) (unbox end)))
-          (when (and (= start-val end-val)
-                     (not (empty-line?))
-                     (at-end-of-line?))
-            (set-position (sub1 start-val) (sub1 end-val))))
-        (do-caret-update))
+        (when (vim?)
+          ;; Don't allow navigation to the "end of line" position when
+          ;; in command mode, since this goes "off the end" in vim
+          (when (eq? mode 'command)
+            (define-values (start end) (values (box #f) (box #f)))
+            (get-position start end)
+            (define-values (start-val end-val) (values (unbox start) (unbox end)))
+            (when (and (= start-val end-val)
+                       (not (empty-line?))
+                       (at-end-of-line?))
+              (set-position (sub1 start-val) (sub1 end-val))))
+          (do-caret-update)))
 
       (define/private (do-caret-update)
         (define-values (start end) (values (box #f) (box #f)))
@@ -230,7 +212,7 @@
       (define/override (on-paint before? dc left top right bottom
                                  dx dy draw-caret)
         (super on-paint before? dc left top right bottom dx dy draw-caret)
-        (when (and cmdline-caret? (not before?))
+        (when (and (vim?) cmdline-caret? (not before?))
           (define-values (start end) (values (box #f) (box #f)))
           (get-position start end)
           (define-values (start-val end-val) (values (unbox start) (unbox end)))
@@ -266,7 +248,7 @@
       ;; override position movement to enforce boundaries of command
       ;; mode movement
       (define/override (move-position code [extend? #f] [kind 'simple])
-        (cond [(eq? mode 'command)
+        (cond [(and (vim?) (eq? mode 'command))
                (define line (position-line (get-start-position)))
                (cond [(and (empty-line?)
                            (or (eq? code 'right) (eq? code 'left)))
@@ -282,7 +264,7 @@
 
       ;; make sure mode is consistent when focus comes back
       (define/override (on-focus in?)
-        (when (and in? (not (eq? parent-frame 'uninitialized)))
+        (when (and (vim?) in? (not (eq? parent-frame 'uninitialized)))
           (update-mode!)))
 
       ;; ==== private functionality ====
