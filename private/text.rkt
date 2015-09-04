@@ -555,8 +555,18 @@
           [#\l (move-position 'right #t)]
           [_ (do-visual-line event)]))
 
+      (define/private (fill-line s e)
+        (define-values (s* e*) (values (get-start-position) (get-end-position)))
+        (cond [(= (position-line s*) (position-line e*))
+               (move-position 'right #t 'line)]
+              [(not (= (position-line s*) (position-line s)))
+               (move-position 'left #t 'line)]
+              [(not (= (position-line e*) (position-line e)))
+               (move-position 'right #t 'line)]))
+
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual-line event)
+        (define-values (s e) (values (get-start-position) (get-end-position)))
         (match (send event get-key-code)
           ;; modes
           ['escape (set-mode! 'command)]
@@ -567,8 +577,12 @@
           [#\p (begin (paste)
                       (set-mode! 'command))]
           ;; visual movement
-          [#\j (visual-line-move 'down)]
-          [#\k (visual-line-move 'up)]
+          ;[#\j (visual-line-move 'down)]
+          ;[#\k (visual-line-move 'up)]
+          [#\j (move-position 'down #t)
+               (fill-line s e)]
+          [#\k (move-position 'up #t)
+               (fill-line s e)]
           ;; re-indent on tab
           [#\tab (super on-local-char event)]
           [_   (void)]))
