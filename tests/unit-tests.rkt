@@ -203,4 +203,11 @@
  @~a{lang racket
      banana})
 
+;;; Select
+(check-vim
+ @~a{#lang racket
+     (+ 1 2)}
+ '(#\V #\j #\k #\x)
+ @~a{(+ 1 2)})
+
 (exit)
