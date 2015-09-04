@@ -644,9 +644,14 @@
       ;; run the current ex command
       (define/private (run-ex-command)
         (match (list->string (gvector->list ex-queue))
+          ["q" (send parent-frame close-current-tab)]
           ["w" (send this save-file)]
           ["tabnext" (send parent-frame next-tab)]
           ["tabprev" (send parent-frame prev-tab)]
+          [(pregexp "tabm \\+(\\d+)" (list _ c)) (for ([i (in-range (string->number c))])
+                                                   (send parent-frame move-current-tab-right))]
+          [(pregexp "tabm \\-(\\d+)" (list _ c)) (for ([i (in-range (string->number c))])
+                                                   (send parent-frame move-current-tab-left))]
           [_ (void)])
         (set-mode! 'command)
         (set! ex-queue (gvector)))
