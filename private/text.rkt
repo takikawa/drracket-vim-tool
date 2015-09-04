@@ -577,8 +577,6 @@
           [#\p (begin (paste)
                       (set-mode! 'command))]
           ;; visual movement
-          ;[#\j (visual-line-move 'down)]
-          ;[#\k (visual-line-move 'up)]
           [#\j (move-position 'down #t)
                (fill-line s e)]
           [#\k (move-position 'up #t)
@@ -690,22 +688,6 @@
                [eol (line-end-position line)])
           (kill 0 (unbox b) eol)
           (adjust-caret-eol)))
-
-      ;; move selection by line
-      ;; : (one-of/c 'down 'up) -> void?
-      (define/private (visual-line-move dir)
-        (define start (get-start-position))
-        (define end (get-end-position))
-        (match dir
-          ['down
-           (define cur-line (position-line end))
-           (define next-line (add1 cur-line))
-           (set-position start (line-end-position next-line))]
-          [_
-           (define cur-line (position-line start))
-           (define prev-line (sub1 cur-line))
-           (when (>= prev-line 0)
-             (set-position (line-start-position prev-line) end))]))
 
       ;; copy selection
       (define/private (visual-copy)
