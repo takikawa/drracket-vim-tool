@@ -506,10 +506,12 @@
           [#\b (if (send event get-control-down)
                    (move-position 'up #f 'page)
                    (move-position 'left #f 'word))]
-          [#\h (move-position 'left)]
-          [#\j (move-position 'down)]
-          [#\k (move-position 'up)]
-          [#\l (move-position 'right)]
+          ['prior (move-position 'up #f 'page)]
+          ['next (move-position 'down #f 'page)]
+          [(or #\h 'left) (move-position 'left)]
+          [(or #\j 'down) (move-position 'down)]
+          [(or #\k 'up) (move-position 'up)]
+          [(or #\l 'right) (move-position 'right)]
           [#\space
            (define-values (start end) (get-current-line-start-end))
            (cond [(= (sub1 end) (get-start-position))
@@ -549,10 +551,10 @@
           [#\w (move-position 'right #t 'word)]
           [#\$ (move-position 'right #t 'line)]
           [#\^ (move-position 'left #t 'line)]
-          [#\h (move-position 'left #t)]
-          [#\j (move-position 'down #t)]
-          [#\k (move-position 'up #t)]
-          [#\l (move-position 'right #t)]
+          [(or #\h 'left) (move-position 'left #t)]
+          [(or #\j 'down) (move-position 'down #t)]
+          [(or #\k 'up) (move-position 'up #t)]
+          [(or #\l 'right) (move-position 'right #t)]
           [_ (do-visual-line event)]))
 
       (define/private (fill-line s e)
@@ -577,9 +579,13 @@
           [#\p (begin (paste)
                       (set-mode! 'command))]
           ;; visual movement
-          [#\j (move-position 'down #t)
+          [(or #\j 'down) (move-position 'down #t)
                (fill-line s e)]
-          [#\k (move-position 'up #t)
+          [(or #\k 'up) (move-position 'up #t)
+               (fill-line s e)]
+          ['prior (move-position 'up #t 'page)
+               (fill-line s e)]
+          ['next (move-position 'down #t 'page)
                (fill-line s e)]
           ;; re-indent on tab
           [#\tab (super on-local-char event)]
