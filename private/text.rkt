@@ -4,7 +4,7 @@
          data/queue
          framework
          racket/control
-         racket/function)
+         unstable/function)
 
 (define on-local-char/c
   (->m (is-a?/c key-event%) void?))
