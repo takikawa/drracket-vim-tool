@@ -471,13 +471,17 @@
       ;; FIXME: make this work correctly for visual mode, etc.
       (define/private (do-replace event)
         (define kc (send event get-key-code))
-        (when (char? kc)
-          (define pos (get-start-position))
-          (begin-edit-sequence)
-          (do-delete-insertion-point)
-          (insert kc pos)
-          (move-position 'left)
-          (end-edit-sequence)))
+        (match kc
+          [(? char?)
+           (define pos (get-start-position))
+           (begin-edit-sequence)
+           (do-delete-insertion-point)
+           (insert kc pos)
+           (move-position 'left)
+           (end-edit-sequence)]
+          ;; ignore shift key sequences, FIXME: may need more codes here
+          [(or 'shift 'rshift)
+           (do-replace (get-next-key))]))
 
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-simple-command event)

@@ -135,6 +135,18 @@
  '(#\y #\% #\% #\p)
  @~a{(    )(    )a})
 
+;;; replace
+
+(check-vim
+ @~a{#lang racket}
+ '(#\r #\a)
+ @~a{alang racket})
+
+(check-vim
+ @~a{#lang racket}
+ `(#\r shift #\A)
+ @~a{Alang racket})
+
 ;;; deletion / yanking / pasting
 (check-vim
  @~a{#lang racket
