@@ -159,6 +159,16 @@
  '(#\v #\l #\l #\l #\y #\p)
  @~a{##lanlang racket})
 
+(check-vim
+ @~a{#lang racket
+     123
+     456}
+ '(#\V #\y #\p)
+ @~a{#lang racket
+     #lang racket
+     123
+     456})
+
 ;; next two tests for issue #20
 (check-vim
  @~a{#lang racket}

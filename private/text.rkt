@@ -713,7 +713,7 @@
                      (if (= (line-end-position (position-line (unbox be))) (unbox be))
                          (add1 (unbox be))
                          (unbox be)))
-          (set! paste-type 'visual-line)
+          (set! paste-type (if (eq? mode 'visual-line) 'line 'normal))
           (visual-cleanup)))
 
       ;; kill selection
