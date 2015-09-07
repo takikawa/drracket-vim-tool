@@ -17,6 +17,13 @@
 (check-vim
  @~a{#lang racket
      abcdef}
+ '(down #\x)
+ @~a{#lang racket
+     bcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
  '(#\l #\i #\a #\b escape #\x)
  @~a{#alang racket
      abcdef})
@@ -46,6 +53,11 @@
 (check-vim
  @~a{#lang racket}
  '(#\space #\k #\x)
+ @~a{#ang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\space 'up #\x)
  @~a{#ang racket})
 
 (check-vim
