@@ -276,7 +276,7 @@
                get-start-position get-end-position
                copy paste kill undo redo delete insert
                line-start-position line-end-position position-line
-               last-line
+               last-line last-position
                local-to-global find-wordbreak
                begin-edit-sequence end-edit-sequence
                get-character find-newline
@@ -518,7 +518,8 @@
           [(or #\l 'right) (move-position 'right)]
           [#\space
            (define-values (start end) (get-current-line-start-end))
-           (cond [(= (sub1 end) (get-start-position))
+           (cond [(and (or (= (sub1 end) (get-start-position)) (empty-line?))
+                       (not (= (add1 (get-end-position)) (last-position))))
                   (move-position 'down)
                   (move-position 'left #f 'line)]
                  [else
