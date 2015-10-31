@@ -77,6 +77,8 @@
       ;; stores #f if the given mark isn't set
       (define local-marks (make-vector 26 #f))
 
+      (define visual-line-mode-direction 'same)
+
       ;; helpers for searching
       ;; char? -> void?
       (define/private (enqueue-char! char)
@@ -95,7 +97,8 @@
       (define/private (set-mode! new-mode)
         (define old-mode mode)
         (set! mode new-mode)
-        (when (eq? new-mode 'visual-line)
+        (when (eq? new-mode 'visual-line) 
+          (set! visual-line-mode-direction 'same)
           (move-position 'left #f 'line)
           (move-position 'right #t 'line))
         (when (and (eq? new-mode 'visual)
@@ -564,10 +567,12 @@
       (define/private (fill-line s e)
         (define-values (s* e*) (values (get-start-position) (get-end-position)))
         (cond [(= (position-line s*) (position-line e*))
+               (set! visual-line-mode-direction 'same)
+               (move-position 'left #f 'line)
                (move-position 'right #t 'line)]
-              [(not (= (position-line s*) (position-line s)))
+              [(equal? visual-line-mode-direction 'up)
                (move-position 'left #t 'line)]
-              [(not (= (position-line e*) (position-line e)))
+              [(equal? visual-line-mode-direction 'down)
                (move-position 'right #t 'line)]))
 
       ;; (is-a?/c key-event%) -> void?
@@ -583,14 +588,34 @@
           [#\p (begin (paste)
                       (set-mode! 'command))]
           ;; visual movement
-          [(or #\j 'down) (move-position 'down #t)
-               (fill-line s e)]
-          [(or #\k 'up) (move-position 'up #t)
-               (fill-line s e)]
-          ['prior (move-position 'up #t 'page)
-               (fill-line s e)]
-          ['next (move-position 'down #t 'page)
-               (fill-line s e)]
+          [(or #\j 'down)
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'down)
+             (move-position 'left #f 'line)
+             (move-position 'right #t 'line))
+           (move-position 'down #t)
+           (fill-line s e)]
+          [(or #\k 'up)
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'up)
+             (move-position 'right #f 'line)
+             (move-position 'left #t 'line))
+           (move-position 'up #t)
+           (fill-line s e)]
+          ['prior
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'up)
+             (move-position 'right #f 'line)
+             (move-position 'left #t 'line))
+           (move-position 'up #t 'page)
+           (fill-line s e)]
+          ['next
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'down)
+             (move-position 'left #f 'line)
+             (move-position 'right #t 'line))
+           (move-position 'down #t 'page)
+           (fill-line s e)]
           ;; re-indent on tab
           [#\tab (super on-local-char event)]
           [_   (void)]))
