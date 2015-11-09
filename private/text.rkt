@@ -128,8 +128,10 @@
       ;; continuation into key handling routine
       (define key-cont #f)
 
-      ;; paste-type : (or/c 'normal 'line)
+      ;; paste-type : (or/c 'normal 'line 'line-end)
       ;; Controls how pasting should behave based on how the copy was done
+      ;; 'line-end corresponds to yanking lines including the end of the
+      ;; buffer, which is missing a newline character
       ;; FIXME: once paste buffers are supported, this should map buffers
       ;;        to paste types instead
       (define paste-type 'normal)
@@ -363,16 +365,22 @@
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste)
-        (cond [(eq? paste-type 'line)
+        (cond [(or (eq? paste-type 'line)
+                   (eq? paste-type 'line-end))
                (begin-edit-sequence)
                (define end (get-end-position))
                (define line (position-line end))
+               (define num-lines (add1 (last-line)))
                (define pos (line-end-position line))
                ;; this insertion is needed to make the paste work
                (insert "\n" pos)
                (paste 0 (add1 pos))
-               ;; remove the extra "\n" we have to insert
-               (delete (line-start-position (+ line 2)))
+               ;; Remove the extra "\n" if we are not at the end. We
+               ;; retain it at the end because the last line is missing
+               ;; a newline character.
+               (unless (eq? paste-type 'line-end)
+                 (define diff-lines (- (add1 (last-line)) num-lines))
+                 (delete (line-start-position (+ line diff-lines))))
                (end-edit-sequence)]
               [else
                (define old-pos (get-start-position))
@@ -430,7 +438,9 @@
 
       (define-syntax-rule (do-line f)
         (let ([b (box 0)])
-          (set! paste-type 'line)
+          (if (= (get-end-position) (last-position))
+              (set! paste-type 'line-end)
+              (set! paste-type 'line))
           (get-position b)
           (define line (position-line (unbox b)))
           (define start (line-start-position line))
@@ -739,7 +749,12 @@
                      (if (= (line-end-position (position-line (unbox be))) (unbox be))
                          (add1 (unbox be))
                          (unbox be)))
-          (set! paste-type (if (eq? mode 'visual-line) 'line 'normal))
+          (set! paste-type
+                (if (eq? mode 'visual-line)
+                    (if (= (get-end-position) (last-position))
+                        'line-end
+                        'line)
+                    'normal))
           (visual-cleanup)))
 
       ;; kill selection

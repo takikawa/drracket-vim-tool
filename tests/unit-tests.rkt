@@ -237,11 +237,43 @@
  @~a{lang racket
      banana})
 
-;;; Select
+;;; Select / visual mode
 (check-vim
  @~a{#lang racket
      (+ 1 2)}
  '(#\V #\j #\k #\x)
  @~a{(+ 1 2)})
+
+(check-vim
+ @~a{abcdef
+     ghijkl}
+ '(#\V #\j #\y #\j #\p)
+ @~a{abcdef
+     ghijkl
+     abcdef
+     ghijkl})
+
+(check-vim
+ @~a{abcdef
+     ghijkl
+     mnopqr}
+ '(#\V #\j #\y #\j #\p)
+ @~a{abcdef
+     ghijkl
+     abcdef
+     ghijkl
+     mnopqr})
+
+(check-vim
+ @~a{abcdef
+     ghijkl
+     mnopqr}
+ '(#\V #\j #\j #\y #\j #\j #\p)
+ @~a{abcdef
+     ghijkl
+     mnopqr
+     abcdef
+     ghijkl
+     mnopqr})
 
 (exit)
