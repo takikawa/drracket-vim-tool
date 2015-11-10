@@ -276,4 +276,10 @@
      ghijkl
      mnopqr})
 
+;; issue #43
+(check-vim
+ @~a{      abcdef}
+ '(#\A escape #\I #\z)
+ @~a{      zabcdef})
+
 (exit)

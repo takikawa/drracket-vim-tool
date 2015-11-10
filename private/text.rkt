@@ -506,7 +506,8 @@
                       (move-position 'right #f 'line))]
           [#\i (set-mode! 'insert)]
           [#\I (begin (set-mode! 'insert)
-                      (move-position 'left #f 'line))]
+                      (move-position 'left #f 'line)
+                      (skip-whitespace))]
           [#\O (begin (set-mode! 'insert)
                       (insert-line-before)
                       (move-position 'up))]
@@ -716,6 +717,14 @@
               (loop (get-character newline-pos))))
           (set-position newline-pos)
           (end-edit-sequence)))
+
+      ;; move the cursor until whitespace is skipped
+      (define/private (skip-whitespace)
+        (let loop ([char (get-character (get-start-position))])
+          (when (and (char-whitespace? char)
+                     (not (eq? #\newline char)))
+            (move-position 'right)
+            (loop (get-character (get-start-position))))))
 
       ;; implements the behavior of "%" and friends in vim
       (define/private (do-matching-paren action)
