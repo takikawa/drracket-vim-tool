@@ -282,4 +282,10 @@
  '(#\A escape #\I #\z)
  @~a{      zabcdef})
 
+;; issue #45
+(check-vim
+ @~a{abcdef}
+ '(#\x #\p)
+ @~a{bacdef})
+
 (exit)

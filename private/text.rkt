@@ -477,7 +477,7 @@
 
       (define/private (do-delete-insertion-point)
         (unless (empty-line?)
-          (delete (add1 (get-start-position)))
+          (kill 0 (get-start-position) (add1 (get-start-position)))
           (adjust-caret-eol)))
 
       ;; (is-a?/c key-event%) -> void?
