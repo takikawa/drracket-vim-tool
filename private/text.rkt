@@ -301,27 +301,37 @@
         (call/comp (λ (k) (abort/cc vim-prompt-tag k))
                    vim-prompt-tag))
 
+      ;; a macro that wraps the method with a case that
+      ;; handles escape characters and cancels the current command
+      (define-syntax-rule (define-cont-method (m event other-arg ...) e ...)
+        (define/private (m event other-arg ...)
+          (cond [(check-escape event) (clear-cont!)]
+                [else e ...])))
+
+      ;; check whether an event is equivalent to "escape"
+      (define/private (check-escape event)
+        (or (eq? (send event get-key-code) 'escape)
+            (and (equal? (send event get-key-code) #\c)
+                 (send event get-control-down))))
+
       ;; handles a multi-character command
       ;; (is-a?/c key-event%) -> void?
-      (define/private (do-command event)
+      (define-cont-method (do-command event)
         (define key (send event get-key-code))
-        (cond
-         [(check-escape event) (clear-cont!)]
-         [else
-          (match key
-            [#\d (do-delete (get-next-key))]
-            [#\y (do-yank (get-next-key))]
-            [#\g (do-global (get-next-key))]
-            [#\m (do-mark 'save (get-next-key))]
-            [#\' (do-mark 'apostrophe (get-next-key))]
-            [#\` (do-mark 'backtick (get-next-key))]
-            [#\r #:when (not (send event get-control-down))
-                 (do-replace (get-next-key))]
-            [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
-            [_   (do-simple-command event)])]))
+        (match key
+          [#\d (do-delete (get-next-key))]
+          [#\y (do-yank (get-next-key))]
+          [#\g (do-global (get-next-key))]
+          [#\m (do-mark (get-next-key) 'save)]
+          [#\' (do-mark (get-next-key) 'apostrophe)]
+          [#\` (do-mark (get-next-key) 'backtick)]
+          [#\r #:when (not (send event get-control-down))
+               (do-replace (get-next-key))]
+          [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
+          [_   (do-simple-command event)]))
 
       ;; handles global commands
-      (define/private (do-global event)
+      (define-cont-method (do-global event)
         (match (send event get-key-code)
           ['release (do-global (get-next-key))]
           [#\g (move-position 'home #f)]
@@ -331,16 +341,21 @@
       (define/private (do-repeat digit)
         (define (char-numeric->number x) (string->number (string x)))
         (let loop ([num (char-numeric->number digit)])
-          (match (send (get-next-key) get-key-code)
-            [(or 'shift 'release) (loop num)]
-            [#\G (if (zero? num)
-                     (set-position (line-start-position (last-line)))
-                     (set-position (line-start-position (sub1 num))))]
-            [(? (conjoin char? char-numeric?) digit) (loop (+ (char-numeric->number digit) (* 10 num)))]
-            [_ (clear-cont!)])))
+          (define event (get-next-key))
+          (cond
+           [(check-escape event) (clear-cont!)]
+           [else
+            (match (send event get-key-code)
+              [(or 'shift 'release) (loop num)]
+              [#\G (if (zero? num)
+                       (set-position (line-start-position (last-line)))
+                       (set-position (line-start-position (sub1 num))))]
+              [(? (conjoin char? char-numeric?) digit)
+               (loop (+ (char-numeric->number digit) (* 10 num)))]
+              [_ (clear-cont!)])])))
 
       ;; handle deletes
-      (define/private (do-delete event)
+      (define-cont-method (do-delete event)
         (match (send event get-key-code)
           [(? symbol?) (do-delete (get-next-key))]
           [#\w (do-word (λ (s e) (send this kill 0 s e)))]
@@ -353,7 +368,7 @@
         (adjust-caret-eol))
 
       ;; handle yanking
-      (define/private (do-yank event)
+      (define-cont-method (do-yank event)
         (set! paste-type 'normal)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
           (match (send event get-key-code)
@@ -401,7 +416,7 @@
                      [(paste)])]))
 
       ;; handle mark setting and navigation
-      (define/private (do-mark kind next-key)
+      (define-cont-method (do-mark next-key kind)
         (define char (send next-key get-key-code))
         (when (mark-char? char)
           (match kind
@@ -466,12 +481,6 @@
           (get-position start)
           (get-position end)
           (f (unbox start) (+ 1 (unbox end)))))
-
-      ;; check whether an event is equivalent to "escape"
-      (define/private (check-escape event)
-        (or (eq? (send event get-key-code) 'escape)
-            (and (equal? (send event get-key-code) #\c)
-                 (send event get-control-down))))
 
       ;; clear the command continuation
       (define/private (clear-cont!)

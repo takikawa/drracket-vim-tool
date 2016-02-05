@@ -166,6 +166,16 @@
 
 (check-vim
  @~a{#lang racket}
+ '(#\d escape #\d)
+ @~a{#lang racket})
+
+(check-vim
+ @~a{#lang racket}
+ `(#\d ,ctrl-c #\d)
+ @~a{#lang racket})
+
+(check-vim
+ @~a{#lang racket}
  '(#\v #\l #\l #\l #\y #\p)
  @~a{##lanlang racket})
 
