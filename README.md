@@ -25,7 +25,7 @@ This plugin is released under the GPLv3. Patches welcome.
 
 ---
 
-Copyright © 2013-2015 Asumu Takikawa
+Copyright © 2013-2016 Asumu Takikawa
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
