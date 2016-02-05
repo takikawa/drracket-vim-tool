@@ -305,18 +305,20 @@
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-command event)
         (define key (send event get-key-code))
-        (match key
-          ['escape (clear-cont!)]
-          [#\d (do-delete (get-next-key))]
-          [#\y (do-yank (get-next-key))]
-          [#\g (do-global (get-next-key))]
-          [#\m (do-mark 'save (get-next-key))]
-          [#\' (do-mark 'apostrophe (get-next-key))]
-          [#\` (do-mark 'backtick (get-next-key))]
-          [#\r #:when (not (send event get-control-down))
-               (do-replace (get-next-key))]
-          [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
-          [_   (do-simple-command event)]))
+        (cond
+         [(check-escape event) (clear-cont!)]
+         [else
+          (match key
+            [#\d (do-delete (get-next-key))]
+            [#\y (do-yank (get-next-key))]
+            [#\g (do-global (get-next-key))]
+            [#\m (do-mark 'save (get-next-key))]
+            [#\' (do-mark 'apostrophe (get-next-key))]
+            [#\` (do-mark 'backtick (get-next-key))]
+            [#\r #:when (not (send event get-control-down))
+                 (do-replace (get-next-key))]
+            [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
+            [_   (do-simple-command event)])]))
 
       ;; handles global commands
       (define/private (do-global event)
@@ -465,13 +467,19 @@
           (get-position end)
           (f (unbox start) (+ 1 (unbox end)))))
 
+      ;; check whether an event is equivalent to "escape"
+      (define/private (check-escape event)
+        (or (eq? (send event get-key-code) 'escape)
+            (and (equal? (send event get-key-code) #\c)
+                 (send event get-control-down))))
+
       ;; clear the command continuation
       (define/private (clear-cont!)
         (set! key-cont #f))
 
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-insert event)
-        (if (eq? (send event get-key-code) 'escape)
+        (if (check-escape event)
             (set-mode! 'command)
             (super on-local-char event)))
 
@@ -590,47 +598,48 @@
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual-line event)
         (define-values (s e) (values (get-start-position) (get-end-position)))
-        (match (send event get-key-code)
-          ;; modes
-          ['escape (set-mode! 'command)]
-          ;; copy & paste
-          [#\d (visual-kill)]
-          [#\x (visual-kill)]
-          [#\y (visual-copy)]
-          [#\p (begin (paste)
-                      (set-mode! 'command))]
-          ;; visual movement
-          [(or #\j 'down)
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'down)
-             (move-position 'left #f 'line)
-             (move-position 'right #t 'line))
-           (move-position 'down #t)
-           (fill-line s e)]
-          [(or #\k 'up)
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'up)
-             (move-position 'right #f 'line)
-             (move-position 'left #t 'line))
-           (move-position 'up #t)
-           (fill-line s e)]
-          ['prior
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'up)
-             (move-position 'right #f 'line)
-             (move-position 'left #t 'line))
-           (move-position 'up #t 'page)
-           (fill-line s e)]
-          ['next
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'down)
-             (move-position 'left #f 'line)
-             (move-position 'right #t 'line))
-           (move-position 'down #t 'page)
-           (fill-line s e)]
-          ;; re-indent on tab
-          [#\tab (super on-local-char event)]
-          [_   (void)]))
+        (cond
+         [(check-escape event) (set-mode! 'command)]
+         [else
+          (match (send event get-key-code)
+            ;; copy & paste
+            [#\d (visual-kill)]
+            [#\x (visual-kill)]
+            [#\y (visual-copy)]
+            [#\p (begin (paste)
+                        (set-mode! 'command))]
+            ;; visual movement
+            [(or #\j 'down)
+             (when (equal? visual-line-mode-direction 'same)
+               (set! visual-line-mode-direction 'down)
+               (move-position 'left #f 'line)
+               (move-position 'right #t 'line))
+             (move-position 'down #t)
+             (fill-line s e)]
+            [(or #\k 'up)
+             (when (equal? visual-line-mode-direction 'same)
+               (set! visual-line-mode-direction 'up)
+               (move-position 'right #f 'line)
+               (move-position 'left #t 'line))
+             (move-position 'up #t)
+             (fill-line s e)]
+            ['prior
+             (when (equal? visual-line-mode-direction 'same)
+               (set! visual-line-mode-direction 'up)
+               (move-position 'right #f 'line)
+               (move-position 'left #t 'line))
+             (move-position 'up #t 'page)
+             (fill-line s e)]
+            ['next
+             (when (equal? visual-line-mode-direction 'same)
+               (set! visual-line-mode-direction 'down)
+               (move-position 'left #f 'line)
+               (move-position 'right #t 'line))
+             (move-position 'down #t 'page)
+             (fill-line s e)]
+            ;; re-indent on tab
+            [#\tab (super on-local-char event)]
+            [_   (void)])]))
 
 
       ;; searching
@@ -644,19 +653,22 @@
       ;; handle search mode key events
       (define/private (do-search event)
         (define key (send event get-key-code))
-        (match key
-          ['escape (set-mode! 'command)]
-          [#\return
-           (define the-string (search-queue->string))
-           (unless (= (string-length the-string) 0)
-             (set! search-string the-string)
-             (do-next-search))
-           (set-mode! 'command)]
-          [#\backspace
-           (unless (queue-empty? search-queue)
-             (dequeue-char!))]
-          [(? char?) (enqueue-char! key)]
-          [_ (void)]))
+        (cond
+         [(check-escape event) (set-mode! 'command)]
+         [else
+          (match key
+            ['escape (set-mode! 'command)]
+            [#\return
+             (define the-string (search-queue->string))
+             (unless (= (string-length the-string) 0)
+               (set! search-string the-string)
+               (do-next-search))
+             (set-mode! 'command)]
+            [#\backspace
+             (unless (queue-empty? search-queue)
+               (dequeue-char!))]
+            [(? char?) (enqueue-char! key)]
+            [_ (void)])]))
 
       (define/private (do-next-search [continuing? #f])
         (when search-string
@@ -678,14 +690,16 @@
       ;; handle ex commands
       (define/private (do-ex event)
         (define key (send event get-key-code))
-        (match key
-          [#\return (run-ex-command)]
-          ['escape (set-mode! 'command)]
-          [#\backspace
-           (unless (= (gvector-count ex-queue) 1)
-             (gvector-remove-last! ex-queue))]
-          [(? char?) (gvector-add! ex-queue key)]
-          [_ (void)])
+        (cond
+         [(check-escape event) (set-mode! 'command)]
+         [else
+          (match key
+            [#\return (run-ex-command)]
+            [#\backspace
+             (unless (= (gvector-count ex-queue) 1)
+               (gvector-remove-last! ex-queue))]
+            [(? char?) (gvector-add! ex-queue key)]
+            [_ (void)])])
         (update-mode!))
 
       ;; run the current ex command

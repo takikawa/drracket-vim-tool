@@ -6,6 +6,9 @@
          racket/format
          rackunit)
 
+(define ctrl-c
+  (new key-event% [key-code #\c] [control-down #t]))
+
 ;;; basic movement and editing
 (check-vim
  @~a{#lang racket
@@ -25,6 +28,13 @@
  @~a{#lang racket
      abcdef}
  '(#\l #\i #\a #\b escape #\x)
+ @~a{#alang racket
+     abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ `(#\l #\i #\a #\b ,ctrl-c #\x)
  @~a{#alang racket
      abcdef})
 
@@ -280,6 +290,11 @@
 (check-vim
  @~a{      abcdef}
  '(#\A escape #\I #\z)
+ @~a{      zabcdef})
+
+(check-vim
+ @~a{      abcdef}
+ `(#\A ,ctrl-c #\I #\z)
  @~a{      zabcdef})
 
 ;; issue #45
