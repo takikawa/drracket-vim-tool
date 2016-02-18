@@ -313,4 +313,19 @@
  '(#\x #\p)
  @~a{bacdef})
 
+;; issue #51
+(check-vim
+ @~a{abc
+     abc}
+ '(#\J #\x)
+ @~a{abc bc})
+
+(check-vim
+ @~a{abc
+
+     abc}
+ '(#\J #\x)
+ @~a{abc
+     abc})
+
 (exit)

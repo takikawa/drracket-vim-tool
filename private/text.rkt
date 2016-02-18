@@ -738,6 +738,7 @@
                        (not (eq? #\newline char)))
               (delete newline-pos)
               (loop (get-character newline-pos))))
+          (insert #\space (sub1 newline-pos))
           (set-position newline-pos)
           (end-edit-sequence)))
 
