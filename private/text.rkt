@@ -707,7 +707,7 @@
           (match key
             [#\return (run-ex-command)]
             [#\backspace
-             (unless (= (gvector-count ex-queue) 1)
+             (unless (= (gvector-count ex-queue) 0)
                (gvector-remove-last! ex-queue))]
             [(? char?) (gvector-add! ex-queue key)]
             [_ (void)])])
