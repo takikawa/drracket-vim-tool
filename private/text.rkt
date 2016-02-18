@@ -700,7 +700,9 @@
       (define/private (do-ex event)
         (define key (send event get-key-code))
         (cond
-         [(check-escape event) (set-mode! 'command)]
+         [(check-escape event)
+          (set! ex-queue (gvector))
+          (set-mode! 'command)]
          [else
           (match key
             [#\return (run-ex-command)]
