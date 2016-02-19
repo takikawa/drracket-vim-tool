@@ -529,8 +529,10 @@
                       (insert-line-before)
                       (move-position 'up))]
           [#\o (begin (set-mode! 'insert)
+                      (define-values (_start end) (get-current-line-start-end))
                       (insert-line-after)
-                      (move-position 'down))]
+                      (unless (equal? _start end)
+                        (move-position 'down)))]
           ;; modes
           [#\v (set-mode! 'visual)]
           [#\V (set-mode! 'visual-line)]
