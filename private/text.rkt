@@ -113,7 +113,8 @@
                    (eq? old-mode 'insert))
           (unless (at-start-of-line?)
             (move-position 'left)))
-        (update-mode!))
+        (update-mode!)
+        (do-caret-update))
 
       ;; handle the GUI portion of setting the mode line
       (define/private (update-mode!)
@@ -206,7 +207,8 @@
                ;; like vim will by offsetting by one
                (define start* start-val)
                (define end*
-                 (if (and (= start-val end-val))
+                 (if (and (= start-val end-val)
+                          (not (equal? mode 'insert)))
                      (add1 end-val)
                      end-val))
                (flash-off)
