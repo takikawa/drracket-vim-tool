@@ -328,4 +328,13 @@
  @~a{abc
      abc})
 
+;; Check 'o', issue #47
+(check-vim
+ @~a{a
+     b}
+ '(#\o #\c)
+ @~a{a
+     c
+     b})
+
 (exit)
