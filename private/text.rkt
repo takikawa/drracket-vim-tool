@@ -1,6 +1,7 @@
 #lang racket/gui
 
-(require data/gvector
+(require "commands.rkt"
+         data/gvector
          data/queue
          framework
          racket/control
@@ -149,7 +150,11 @@
             (call/prompt
              (λ ()
                (cond [key-cont (key-cont event)]
-                     [(eq? mode 'command) (do-command event)]
+                     [(eq? mode 'command)
+                      (define command
+                        (parse-command event (λ () (get-next-key))))
+                      (and command
+                           (handle-command command))]
                      [(eq? mode 'insert)  (do-insert event)]
                      [(eq? mode 'visual)  (do-visual event)]
                      [(eq? mode 'visual-line) (do-visual-line event)]
@@ -303,84 +308,131 @@
         (call/comp (λ (k) (abort/cc vim-prompt-tag k))
                    vim-prompt-tag))
 
-      ;; a macro that wraps the method with a case that
-      ;; handles escape characters and cancels the current command
-      (define-syntax-rule (define-cont-method (m event other-arg ...) e ...)
-        (define/private (m event other-arg ...)
-          (cond [(check-escape event) (clear-cont!)]
-                [else e ...])))
-
       ;; check whether an event is equivalent to "escape"
       (define/private (check-escape event)
         (or (eq? (send event get-key-code) 'escape)
             (and (equal? (send event get-key-code) #\c)
                  (send event get-control-down))))
 
-      ;; handles a multi-character command
-      ;; (is-a?/c key-event%) -> void?
-      (define-cont-method (do-command event)
-        (define key (send event get-key-code))
-        (match key
-          [#\d (do-delete (get-next-key))]
-          [#\y (do-yank (get-next-key))]
-          [#\g (do-global (get-next-key))]
-          [#\m (do-mark (get-next-key) 'save)]
-          [#\' (do-mark (get-next-key) 'apostrophe)]
-          [#\` (do-mark (get-next-key) 'backtick)]
-          [#\r #:when (not (send event get-control-down))
-               (do-replace (get-next-key))]
-          [(? (conjoin char? char-numeric?) digit) (do-repeat digit)]
-          [_   (do-simple-command event)]))
+      ;; handles command-mode operations
+      ;; Command -> Void
+      (define/private (handle-command command)
+        (match command
+          [(? motion-command?)   (handle-motion-command command)]
+          [(? mark-command?)     (handle-mark command)]
+          [(? replace-command?)  (handle-replace command)]
+          [(? goto-command?)
+           (match-define (goto-command line) command)
+           (if (eq? line 'last-line)
+               (set-position (line-start-position (last-line)))
+               (set-position (line-start-position (sub1 line))))]
+          [_ (handle-simple-command command)]))
 
-      ;; handles global commands
-      (define-cont-method (do-global event)
-        (match (send event get-key-code)
-          ['release (do-global (get-next-key))]
-          [#\g (move-position 'home #f)]
-          [_ (clear-cont!)]))
+      ;; handle a command with no motion/repeat
+      (define/private (handle-simple-command command)
+        (match command
+          ;; insertion
+          ['insert-end
+           (set-mode! 'insert)
+           (move-position 'right)]
+          ['insert-end-line
+           (set-mode! 'insert)
+           (move-position 'right #f 'line)]
+          ['insert
+           (set-mode! 'insert)]
+          ['insert-line
+           (set-mode! 'insert)
+           (move-position 'left #f 'line)
+           (skip-whitespace)]
+          ['insert-previous-line
+           (set-mode! 'insert)
+           (insert-line-before)
+           (move-position 'up)]
+          ['insert-next-line
+           (set-mode! 'insert)
+           (define-values (_start end) (get-current-line-start-end))
+           (insert-line-after)
+           (unless (equal? _start end)
+             (move-position 'down))]
 
-      ;; handles command repetition and line jump
-      (define/private (do-repeat digit)
-        (define (char-numeric->number x) (string->number (string x)))
-        (let loop ([num (char-numeric->number digit)])
-          (define event (get-next-key))
-          (cond
-           [(check-escape event) (clear-cont!)]
-           [else
-            (match (send event get-key-code)
-              [(or 'shift 'release) (loop num)]
-              [#\G (if (zero? num)
-                       (set-position (line-start-position (last-line)))
-                       (set-position (line-start-position (sub1 num))))]
-              [(? (conjoin char? char-numeric?) digit)
-               (loop (+ (char-numeric->number digit) (* 10 num)))]
-              [_ (clear-cont!)])])))
+          ;; modes
+          ['visual      (set-mode! 'visual)]
+          ['visual-line (set-mode! 'visual-line)]
+          ['ex          (set-mode! 'ex)]
 
-      ;; handle deletes
-      (define-cont-method (do-delete event)
-        (match (send event get-key-code)
-          [(? symbol?) (do-delete (get-next-key))]
-          [#\w (do-word (λ (s e) (send this kill 0 s e)))]
-          [#\d (do-line (λ (s e)
-                          (send this kill 0 s e)
-                          (send this move-position 'left #f 'line)))]
-          [#\% (do-matching-paren
-                (λ (_ s e) (and s e (send this kill 0 s e))))]
-          [_ (clear-cont!)])
+          ;; movement
+          ['left          (move-position 'left)]
+          ['down          (move-position 'down)]
+          ['up            (move-position 'up)]
+          ['right         (move-position 'right)]
+          ['next-page     (move-position 'down #f 'page)]
+          ['previous-page (move-position 'up #f 'page)]
+          ['next-word     (move-position 'right #f 'word)]
+          ['previous-word (move-position 'left #f 'word)]
+          ['continue
+           (define-values (start end) (get-current-line-start-end))
+           (cond [(and (or (= (sub1 end) (get-start-position)) (empty-line?))
+                       (not (= (add1 (get-end-position)) (last-position))))
+                  (move-position 'down)
+                  (move-position 'left #f 'line)]
+                 [else
+                  (move-position 'right)])]
+          ['start-of-line         (move-position 'left #f 'line)]
+          ['end-of-line           (move-position 'right #f 'line)]
+          ;; FIXME: this is not quite right
+          ['start-of-line-content (move-position 'left #f 'line)]
+          ['match (do-matching-paren
+                    (λ (dir s e)
+                      (match dir
+                        ['backward (set-position s)]
+                        ['forward  (set-position (sub1 e))])))]
+          ['start-of-file (move-position 'home #f)]
+          ['end-of-file   (move-position 'end #f)]
+
+          ;; editing
+          ['join-line        (delete-next-newline-and-whitespace)]
+          ['delete-at-cursor (do-delete-insertion-point)]
+
+          ;; copy & paste & editing
+          ['delete-rest (delete-until-end)]
+          ['delete-line (do-line (λ (s e)
+                                   (send this kill 0 s e)
+                                   (send this move-position 'left #f 'line)))]
+          ['yank-line   (do-line (λ (s e) (send this copy #f 0 s e)))]
+          ['paste       (do-paste)]
+          ['undo        (undo)]
+          ['redo        (redo)]
+
+          ;; search
+          ['search      (set-mode! 'search)]
+          ['next-search (do-next-search #t)]
+
+          [_   (void)]))
+
+      (define/private (handle-motion-command command)
+        (match-define (motion-command operation motion) command)
+        ;; FIXME: handle repeats
+        (match operation
+          ['delete (handle-delete motion)]
+          ['yank   (handle-yank motion)]))
+
+      ;; handle deletion based on a motion
+      (define/private (handle-delete motion)
+        (match motion
+          ['word  (do-word (λ (s e) (send this kill 0 s e)))]
+          ['match (do-matching-paren
+                    (λ (_ s e) (and s e (send this kill 0 s e))))])
         (adjust-caret-eol))
 
-      ;; handle yanking
-      (define-cont-method (do-yank event)
+      ;; handle yanking based on a motion
+      (define/private (handle-yank motion)
         (set! paste-type 'normal)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
-          (match (send event get-key-code)
-            [(? symbol?) (do-yank (get-next-key))]
-            [#\w (do-word copier)]
-            [#\y (do-line copier)]
-            [#\% (do-matching-paren
-                  (λ (_ s e) (and s e (copier s e))))]
-            [#\space (do-character copier)]
-            [_ (clear-cont!)])))
+          (match motion
+            ['word  (do-word copier)]
+            ['match (do-matching-paren
+                      (λ (_ s e) (and s e (copier s e))))]
+            ['right (do-character copier)])))
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste)
@@ -418,21 +470,19 @@
                      [(paste)])]))
 
       ;; handle mark setting and navigation
-      (define-cont-method (do-mark next-key kind)
-        (define char (send next-key get-key-code))
-        (when (mark-char? char)
-          (match kind
-            ['apostrophe
-             (define mark-pos (lookup-mark char))
-             (when mark-pos
-               (define mark-line (position-line mark-pos))
-               (set-position (line-start-position mark-line)))]
-            ['backtick
-             (define mark-pos (lookup-mark char))
-             (when mark-pos
-               (set-position mark-pos))]
-            ['save (set-mark char)]))
-        (clear-cont!))
+      (define/private (handle-mark command)
+        (match-define (mark-command kind mark) command)
+        (match kind
+          ['goto-mark-line
+           (define mark-pos (lookup-mark mark))
+           (when mark-pos
+             (define mark-line (position-line mark-pos))
+             (set-position (line-start-position mark-line)))]
+          ['goto-mark-char
+           (define mark-pos (lookup-mark mark))
+           (when mark-pos
+             (set-position mark-pos))]
+          ['save-mark (set-mark mark)]))
 
       ;; Look up a mark and return the mapped position. If the
       ;; key is an invalid mark character, return #f
@@ -449,11 +499,6 @@
                      (- (char->integer char)
                         (char->integer #\a))
                      (unbox start-box)))
-
-      (define/private (mark-char? key)
-        (and (char? key)
-             (char>=? key #\a)
-             (char<=? key #\z)))
 
       (define-syntax-rule (do-line f)
         (let ([b (box 0)])
@@ -499,90 +544,16 @@
           (kill 0 (get-start-position) (add1 (get-start-position)))
           (adjust-caret-eol)))
 
-      ;; (is-a?/c key-event%) -> void?
+      ;; ReplaceCommand -> Void
       ;; FIXME: make this work correctly for visual mode, etc.
-      (define/private (do-replace event)
-        (define kc (send event get-key-code))
-        (match kc
-          [(? char?)
-           (define pos (get-start-position))
-           (begin-edit-sequence)
-           (do-delete-insertion-point)
-           (insert kc pos)
-           (move-position 'left)
-           (end-edit-sequence)]
-          ;; ignore shift key sequences, FIXME: may need more codes here
-          [(or 'shift 'rshift)
-           (do-replace (get-next-key))]))
-
-      ;; (is-a?/c key-event%) -> void?
-      (define/private (do-simple-command event)
-        (match (send event get-key-code)
-          ;; insertion
-          [#\a (begin (set-mode! 'insert)
-                      (move-position 'right))]
-          [#\A (begin (set-mode! 'insert)
-                      (move-position 'right #f 'line))]
-          [#\i (set-mode! 'insert)]
-          [#\I (begin (set-mode! 'insert)
-                      (move-position 'left #f 'line)
-                      (skip-whitespace))]
-          [#\O (begin (set-mode! 'insert)
-                      (insert-line-before)
-                      (move-position 'up))]
-          [#\o (begin (set-mode! 'insert)
-                      (define-values (_start end) (get-current-line-start-end))
-                      (insert-line-after)
-                      (unless (equal? _start end)
-                        (move-position 'down)))]
-          ;; modes
-          [#\v (set-mode! 'visual)]
-          [#\V (set-mode! 'visual-line)]
-          [#\: (set-mode! 'ex)]
-          ;; movement
-          [#\f (and (send event get-control-down)
-                    (move-position 'down #f 'page))]
-          [#\b (if (send event get-control-down)
-                   (move-position 'up #f 'page)
-                   (move-position 'left #f 'word))]
-          ['prior (move-position 'up #f 'page)]
-          ['next (move-position 'down #f 'page)]
-          [(or #\h 'left) (move-position 'left)]
-          [(or #\j 'down) (move-position 'down)]
-          [(or #\k 'up) (move-position 'up)]
-          [(or #\l 'right) (move-position 'right)]
-          [#\space
-           (define-values (start end) (get-current-line-start-end))
-           (cond [(and (or (= (sub1 end) (get-start-position)) (empty-line?))
-                       (not (= (add1 (get-end-position)) (last-position))))
-                  (move-position 'down)
-                  (move-position 'left #f 'line)]
-                 [else
-                  (move-position 'right)])]
-          [#\w (move-position 'right #f 'word)]
-          [#\0 (move-position 'left #f 'line)]
-          [#\$ (move-position 'right #f 'line)]
-          [#\^ (move-position 'left #f 'line)]
-          [#\% (do-matching-paren
-                (λ (dir s e)
-                  (match dir
-                    ['backward (set-position s)]
-                    ['forward  (set-position (sub1 e))])))]
-          [#\G (move-position 'end #f)]
-
-          ;; editing
-          [#\J (delete-next-newline-and-whitespace)]
-          [#\x (do-delete-insertion-point)]
-          ;; copy & paste & editing
-          [#\D (delete-until-end)]
-          [#\p (do-paste)]
-          [#\u (undo)]
-          [#\r (and (send event get-control-down)
-                    (redo))]
-          ;; search
-          [#\/ (set-mode! 'search)]
-          [#\n (do-next-search #t)]
-          [_   (void)]))
+      (define/private (handle-replace command)
+        (match-define (replace-command char) command)
+        (define pos (get-start-position))
+        (begin-edit-sequence)
+        (do-delete-insertion-point)
+        (insert char pos)
+        (move-position 'left)
+        (end-edit-sequence))
 
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual event)
