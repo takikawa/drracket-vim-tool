@@ -421,7 +421,8 @@
         (match motion
           ['word  (do-word (λ (s e) (send this kill 0 s e)))]
           ['match (do-matching-paren
-                    (λ (_ s e) (and s e (send this kill 0 s e))))])
+                    (λ (_ s e) (and s e (send this kill 0 s e))))]
+          ['right (do-character (λ (s e) (send this kill 0 s e)))])
         (adjust-caret-eol))
 
       ;; handle yanking based on a motion

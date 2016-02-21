@@ -210,6 +210,7 @@
            [#\w 'word]
            [#\p 'paragraph]
            [_    #f])]
-    [#\% 'match]
-    [#\" 'double-quote]
+    [#\%     'match]
+    [#\"     'double-quote]
+    [#\space 'right]
     [_   #f]))

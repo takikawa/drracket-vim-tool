@@ -228,6 +228,11 @@
  @~a{#lang racket
      a#bcdef})
 
+(check-vim
+ @~a{#lang racket}
+ '(#\d #\space)
+ @~a{lang racket})
+
 ;;; undo/redo
 (check-vim
  @~a{#lang racket
