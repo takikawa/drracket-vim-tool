@@ -153,7 +153,7 @@
     (define event (next-key))
     (match (send event get-key-code)
       [#\G
-       (goto-command (if (zero? num) 'last-line (sub1 num)))]
+       (goto-command (if (zero? num) 'last-line num))]
       [(? (conjoin char? char-numeric?) digit)
        (loop (+ (char-numeric->number digit) (* 10 num)))]
       [_

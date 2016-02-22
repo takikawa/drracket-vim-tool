@@ -111,6 +111,18 @@
      fooba})
 
 (check-vim
+ @~a{#lang racket
+     foobar
+     barbaz
+     bazqux}
+ '(#\2 #\G #\o #\a)
+ @~a{#lang racket
+     foobar
+     a
+     barbaz
+     bazqux})
+
+(check-vim
  @~a{(    )}
  '(#\% #\x)
  @~a{(    })
