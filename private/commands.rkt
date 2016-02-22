@@ -28,7 +28,7 @@
 (struct goto-command (line))
 
 ;; A Repeat is an integer
-;; An Operator is a
+;; An Operator (for a motion command) is one of
 ;;   (or/c 'change
 ;;         'delete
 ;;         'yank
