@@ -10,6 +10,7 @@
 (provide parse-command
          (struct-out motion-command)
          (struct-out mark-command)
+         (struct-out repeat-command)
          (struct-out repeat-motion)
          (struct-out replace-command)
          (struct-out goto-command))

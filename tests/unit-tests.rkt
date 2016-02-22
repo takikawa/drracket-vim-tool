@@ -354,4 +354,23 @@
      c
      b})
 
+;; Repeate command
+
+(check-vim
+ @~a{a
+     b
+     c
+     d
+     e
+     f}
+ '(#\g #\g #\3 #\j #\o #\b)
+ @~a{a
+     b
+     c
+     d
+     b
+     e
+     f})
+
+
 (exit)

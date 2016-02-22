@@ -321,6 +321,8 @@
           [(? motion-command?)   (handle-motion-command command)]
           [(? mark-command?)     (handle-mark command)]
           [(? replace-command?)  (handle-replace command)]
+          [(? repeat-command?)  (for ([i (in-range (repeat-command-repeat command))])
+                                  (handle-command (repeat-command-command command)))]
           [(? goto-command?)
            (match-define (goto-command line) command)
            (if (eq? line 'last-line)
