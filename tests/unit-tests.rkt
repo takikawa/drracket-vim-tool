@@ -389,4 +389,10 @@
  '(#\space #\i #\a)
  "\na")
 
+;; Issue #25
+(check-vim
+ "\n\n"
+ '(#\a #\b)
+ "b\n\n")
+
 (exit)

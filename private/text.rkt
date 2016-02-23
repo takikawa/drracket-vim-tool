@@ -336,7 +336,8 @@
           ;; insertion
           ['insert-end
            (set-mode! 'insert)
-           (move-position 'right)]
+           (unless (at-end-of-line?)
+             (move-position 'right))]
           ['insert-end-line
            (set-mode! 'insert)
            (move-position 'right #f 'line)]
