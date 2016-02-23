@@ -374,7 +374,11 @@
           ['continue
            (define-values (start end) (get-current-line-start-end))
            (cond [(and (or (= (sub1 end) (get-start-position)) (empty-line?))
-                       (not (= (add1 (get-end-position)) (last-position))))
+                       ;; only move if we're not about to hit the end or
+                       ;; the next (and last) line is blank
+                       (or (not (= (add1 (get-end-position)) (last-position)))
+                           (equal? #\newline
+                                   (get-character (get-end-position)))))
                   (move-position 'down)
                   (move-position 'left #f 'line)]
                  [else

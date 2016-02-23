@@ -372,5 +372,15 @@
      e
      f})
 
+;; Related to issue #34, space near end of file
+(check-vim
+ "\nab"
+ '(#\space #\space #\space #\x)
+ "\na")
+
+(check-vim
+ "\n"
+ '(#\space #\i #\a)
+ "\na")
 
 (exit)
