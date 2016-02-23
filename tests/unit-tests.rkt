@@ -372,6 +372,12 @@
      e
      f})
 
+;; Issue #34, #\space on empty line
+(check-vim
+ "\na\n"
+ '(#\space #\x)
+ "\n\n")
+
 ;; Related to issue #34, space near end of file
 (check-vim
  "\nab"
