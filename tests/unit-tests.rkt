@@ -169,6 +169,12 @@
  `(#\r shift #\A)
  @~a{Alang racket})
 
+;; issue #58 for replace at end of line
+(check-vim
+ @~a{#lang racket}
+ '(#\$ #\r #\a #\x)
+ @~a{#lang racke})
+
 ;;; deletion / yanking / pasting
 (check-vim
  @~a{#lang racket

@@ -559,10 +559,14 @@
       (define/private (handle-replace command)
         (match-define (replace-command char) command)
         (define pos (get-start-position))
+        (define eol? (at-end-of-line? 1))
         (begin-edit-sequence)
         (do-delete-insertion-point)
         (insert char pos)
-        (move-position 'left)
+        (if eol?
+            (move-position 'right)
+            ;; compensate for insertion moving right
+            (move-position 'left))
         (end-edit-sequence))
 
       ;; (is-a?/c key-event%) -> void?
@@ -819,11 +823,13 @@
                 (line-end-position line)))
 
       ;; determine if the current position is at the end of the line
-      (define/private (at-end-of-line?)
+      ;; possibly counting an offset from the actual current position
+      (define/private (at-end-of-line? [offset 0])
         (define-values (start end) (values (box #f) (box #f)))
         (get-position start end)
         (define cur-line (position-line (unbox start)))
-        (= (line-end-position cur-line) (unbox start)))
+        (= (line-end-position cur-line)
+           (+ offset (unbox start))))
 
       ;; determine if the current position is at the start of the line
       (define/private (at-start-of-line?)
