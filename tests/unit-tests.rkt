@@ -201,6 +201,16 @@
      123
      456})
 
+(check-vim
+ @~a{racket}
+ '(#\y #\a #\w #\p #\x)
+ @~a{rrackeacket})
+
+(check-vim
+ @~a{racket}
+ '(#\y #\a #\w #\$ #\p #\x)
+ @~a{racketracke})
+
 ;; next two tests for issue #20
 (check-vim
  @~a{#lang racket}

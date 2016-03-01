@@ -475,7 +475,9 @@
                       (delete (line-end-position line))
                       (adjust-caret-eol)
                       (end-edit-sequence)]
-                     [(paste)])]))
+                     [(paste)
+                      ;; vim stays at the end of the paste, not right after
+                      (set-position (sub1 (get-start-position)))])]))
 
       ;; handle mark setting and navigation
       (define/private (handle-mark command)
