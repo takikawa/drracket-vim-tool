@@ -462,6 +462,7 @@
                  (delete (line-start-position (+ line diff-lines))))
                (end-edit-sequence)]
               [else
+               (define old-last (last-position))
                (define old-pos (get-start-position))
                (define line (position-line old-pos))
                (define end (line-end-position line))
@@ -668,16 +669,31 @@
             [(? char?) (enqueue-char! key)]
             [_ (void)])]))
 
+      ;; [Boolean] -> Void
       (define/private (do-next-search [continuing? #f])
         (when search-string
-          ;; set the search state to get the next hit
-          (cond [continuing?
-                 (define old-pos (get-start-position))
+          (define-values (_ total) (get-search-hit-count))
+          (cond [(and continuing? (> total 0))
+                 (begin-edit-sequence)
                  (move-position 'right)
-                 (yield) ; to allow search to update
-                 (if (get-replace-search-hit)
-                     (set-position (get-replace-search-hit))
-                     (set-position old-pos))]
+                 (sleep/yield 0.1) ; timeout determined experimentally
+                 (define-values (before _) (get-search-hit-count))
+                 (cond ;; if there are more hits ahead in the buffer
+                       ;; then continue to the next hit
+                       [(> (- total before) 0)
+                        (set-position (get-replace-search-hit))]
+                       ;; there are hits before the cursor and none after
+                       ;; so start over from the top
+                       [(and continuing? (> before 0))
+                        (set-position 0)
+                        ;; keep waiting until the search updates
+                        ;; ASSUMPTION: the buffer is not edited while we yield
+                        (let loop ([hit (get-replace-search-hit)])
+                          (if hit
+                              (set-position hit)
+                              (loop (begin (yield) (get-replace-search-hit)))))])
+                 (end-edit-sequence)]
+                ;; start a fresh search
                 [else
                  (set-searching-state search-string #f #t #f)
                  (finish-pending-search-work)

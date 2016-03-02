@@ -295,6 +295,24 @@
  @~a{lang racket
      banana})
 
+(check-vim
+ @~a{test
+
+     test}
+ '(#\/ #\t #\e #\s #\t #\return #\n #\x)
+ @~a{test
+
+     est})
+
+(check-vim
+ @~a{test
+
+     test}
+ '(#\/ #\t #\e #\s #\t #\return #\n #\n #\x)
+ @~a{est
+
+     test})
+
 ;;; Select / visual mode
 (check-vim
  @~a{#lang racket
