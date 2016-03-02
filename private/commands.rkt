@@ -105,6 +105,7 @@
     [#\I 'insert-line]
     [#\O 'insert-previous-line]
     [#\o 'insert-next-line]
+    [#\s 'insert-at-delete]
 
     ;; modes
     [#\v 'visual]

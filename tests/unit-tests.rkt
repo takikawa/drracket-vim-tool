@@ -462,4 +462,10 @@
  '(#\a #\b)
  "b\n\n")
 
+;; Issue #65
+(check-vim
+ @~a{#lang racket}
+ '(#\s #\t)
+ @~a{tlang racket})
+
 (exit)

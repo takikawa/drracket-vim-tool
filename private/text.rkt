@@ -354,6 +354,9 @@
            (set-mode! 'insert)
            (define-values (_start end) (get-current-line-start-end))
            (insert-line-after)]
+          ['insert-at-delete
+           (do-delete-insertion-point)
+           (set-mode! 'insert)]
 
           ;; modes
           ['visual      (set-mode! 'visual)]
