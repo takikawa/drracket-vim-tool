@@ -425,7 +425,6 @@
 
       (define/private (handle-motion-command command)
         (match-define (motion-command operation motion) command)
-        ;; FIXME: handle repeats
         (match operation
           ['delete (handle-delete motion)]
           ['yank   (handle-yank motion)]))
