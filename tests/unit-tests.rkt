@@ -191,6 +191,22 @@
  '(#\$ #\r #\a #\x)
  @~a{#lang racke})
 
+;;; change
+(check-vim
+ @~a{#lang racket}
+ '(#\c #\c #\x)
+ @~a{x})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\S #\x)
+ @~a{x})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\l #\l #\C #\x)
+ @~a{#lx})
+
 ;;; deletion / yanking / pasting
 (check-vim
  @~a{#lang racket

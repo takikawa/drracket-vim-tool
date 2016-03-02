@@ -99,8 +99,9 @@
     [#\r #:when (not (send key get-control-down))
      (parse-replace next-key)]
     [#\= (parse-filter next-key)]
+    [#\c (parse-change next-key)]
 
-    ;; insertion
+    ;; insertion / change
     [#\a 'insert-end]
     [#\A 'insert-end-line]
     [#\i 'insert]
@@ -108,6 +109,8 @@
     [#\O 'insert-previous-line]
     [#\o 'insert-next-line]
     [#\s 'insert-at-delete]
+    [#\S 'change-line]
+    [#\C 'change-rest]
 
     ;; modes
     [#\v 'visual]
@@ -212,6 +215,14 @@
   (define code (send key get-key-code))
   (match code
     [#\= 'filter-line]
+    [_   #f]))
+
+(define (parse-change next-key)
+  (define key (next-key))
+  (define code (send key get-key-code))
+  (match code
+    [#\c 'change-line]
+    ;; FIXME: implement change with motions
     [_   #f]))
 
 (define (parse-motion first-key next-key)

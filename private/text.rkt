@@ -367,6 +367,14 @@
           ['insert-at-delete
            (do-delete-insertion-point)
            (set-mode! 'insert)]
+          ['change-line
+           (do-delete-line)
+           (set-mode! 'insert)]
+          ['change-rest
+           (delete-until-end)
+           (set-mode! 'insert)
+           (unless (at-end-of-line?)
+             (move-position 'right))]
 
           ;; modes
           ['visual      (set-mode! 'visual)]
@@ -418,9 +426,7 @@
 
           ;; copy & paste & editing
           ['delete-rest (delete-until-end)]
-          ['delete-line (do-line (λ (s e)
-                                   (send this kill 0 s e)
-                                   (send this move-position 'left #f 'line)))]
+          ['delete-line (do-delete-line)]
           ['yank-line   (do-line (λ (s e) (send this copy #f 0 s e)))]
           ['paste       (do-paste)]
           ['undo        (undo)]
@@ -525,7 +531,7 @@
                         (char->integer #\a))
                      (unbox start-box)))
 
-      (define-syntax-rule (do-line f)
+      (define/private (do-line f)
         (let ([b (box 0)])
           (if (= (get-end-position) (last-position))
               (set! paste-type 'line-end)
@@ -538,6 +544,11 @@
                  (sub1 start)
                  start)
              (add1 (line-end-position line)))))
+
+      (define (do-delete-line)
+        (do-line (λ (s e)
+                   (send this kill 0 s e)
+                   (send this move-position 'left #f 'line))))
 
       (define-syntax-rule (do-word f)
         (let ([start (box 0)]
