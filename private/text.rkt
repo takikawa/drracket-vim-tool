@@ -768,10 +768,13 @@
         (define char (get-character pos))
         (match char
           [(or #\) #\] #\})
-           (action 'backward (get-backward-sexp (add1 pos))
-                             (add1 pos))]
+           (define maybe-back (get-backward-sexp (add1 pos)))
+           (when maybe-back
+             (action 'backward maybe-back (add1 pos)))]
           [(or #\( #\[ #\{)
-           (action 'forward pos (get-forward-sexp pos))]
+           (define maybe-fwd (get-forward-sexp pos))
+           (when maybe-fwd
+             (action 'forward pos maybe-fwd))]
           [_ (void)]))
 
       ;; -> void?
