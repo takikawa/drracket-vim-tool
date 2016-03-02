@@ -349,14 +349,11 @@
            (skip-whitespace)]
           ['insert-previous-line
            (set-mode! 'insert)
-           (insert-line-before)
-           (move-position 'up)]
+           (insert-line-before)]
           ['insert-next-line
            (set-mode! 'insert)
            (define-values (_start end) (get-current-line-start-end))
-           (insert-line-after)
-           (unless (equal? _start end)
-             (move-position 'down))]
+           (insert-line-after)]
 
           ;; modes
           ['visual      (set-mode! 'visual)]
@@ -824,12 +821,18 @@
       ;; insert line after the line the cursor is currently on
       (define/private (insert-line-after)
         (define-values (_start end) (get-current-line-start-end))
-        (send this insert "\n" end))
+        (begin-edit-sequence)
+        (set-position end)
+        (send this insert-return)
+        (end-edit-sequence))
 
       ;; insert line before the line the cursor is currently on
       (define/private (insert-line-before)
         (define-values (start _end) (get-current-line-start-end))
-        (send this insert "\n" (if (zero? start) start (sub1 start))))
+        (begin-edit-sequence)
+        (set-position (if (zero? start) start (sub1 start)))
+        (send this insert-return)
+        (end-edit-sequence))
 
       ;; -> (values int int)
       ;; gets the start and end position of the line at the start of current selection

@@ -404,6 +404,23 @@
      c
      b})
 
+;; Issue #63, o indentation
+(check-vim
+ @~a{(let ([x 5])
+       x)}
+ '(#\o #\x)
+ @~a{(let ([x 5])
+       x
+       x)})
+
+(check-vim
+ @~a{(let ([x 5])
+       x)}
+ '(#\j #\O #\x)
+ @~a{(let ([x 5])
+       x
+       x)})
+
 ;; Repeate command
 
 (check-vim
