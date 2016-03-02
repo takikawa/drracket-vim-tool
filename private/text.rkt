@@ -462,7 +462,6 @@
                  (delete (line-start-position (+ line diff-lines))))
                (end-edit-sequence)]
               [else
-               (define old-last (last-position))
                (define old-pos (get-start-position))
                (define line (position-line old-pos))
                (define end (line-end-position line))
