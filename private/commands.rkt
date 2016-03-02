@@ -39,10 +39,11 @@
 ;;         'format
 ;;         'rot13
 ;;         'shift-right
-;;         'shift-left)
+;;         'shift-left
+;;         'filter)
 ;;
 ;; TODO: Operator leaves out
-;;       filtering, folding, and function calls from vim
+;;       folding, and function calls from vim
 ;;
 ;; A Motion is one of
 ;;   - 'word
@@ -97,6 +98,7 @@
     [#\g (parse-global next-key)]
     [#\r #:when (not (send key get-control-down))
      (parse-replace next-key)]
+    [#\= (parse-filter next-key)]
 
     ;; insertion
     [#\a 'insert-end]
@@ -204,6 +206,13 @@
   (and (char? key)
        (char>=? key #\a)
        (char<=? key #\z)))
+
+(define (parse-filter next-key)
+  (define key (next-key))
+  (define code (send key get-key-code))
+  (match code
+    [#\= 'filter-line]
+    [_   #f]))
 
 (define (parse-motion first-key next-key)
   (define code (send first-key get-key-code))

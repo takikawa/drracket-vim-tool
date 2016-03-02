@@ -468,4 +468,12 @@
  '(#\s #\t)
  @~a{tlang racket})
 
+;; Issue #64
+(check-vim
+ @~a{(let ([x 5])
+     x)}
+ '(#\j #\= #\=)
+ @~a{(let ([x 5])
+       x)})
+
 (exit)

@@ -292,7 +292,8 @@
                local-to-global find-wordbreak
                begin-edit-sequence end-edit-sequence
                get-character find-newline
-               get-forward-sexp get-backward-sexp)
+               get-forward-sexp get-backward-sexp
+               tabify-selection)
 
       ;; mode string for mode line
       ;; -> string?
@@ -399,6 +400,12 @@
           ;; editing
           ['join-line        (delete-next-newline-and-whitespace)]
           ['delete-at-cursor (do-delete-insertion-point)]
+
+          ;; FIXME: in vim this can call out to an external program, but
+          ;;        for now it only does the default behavior of indenting
+          ['filter-line
+           (define-values (start end) (get-current-line-start-end))
+           (tabify-selection start end)]
 
           ;; copy & paste & editing
           ['delete-rest (delete-until-end)]
