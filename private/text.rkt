@@ -1,5 +1,14 @@
 #lang racket/gui
 
+;; The main GUI code for the DrRacket vim plugin
+;;
+;; How to add a new command:
+;;   * Add parsing logic for the command in "commands.rkt" which
+;;     will produce a representation of a command.
+;;
+;;   * Add handling code in the vim-emulation-mixin that dispatches
+;;     on the command representation. (see methods that start with `handle-`)
+
 (require "commands.rkt"
          data/gvector
          data/queue
