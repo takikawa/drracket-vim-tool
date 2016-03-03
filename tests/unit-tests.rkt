@@ -293,6 +293,14 @@
  '(#\d #\space)
  @~a{lang racket})
 
+;; Issue #66
+(check-vim
+ @~a{foo
+     bar}
+ '(#\v #\l #\y #\j #\h #\h #\p #\p #\p)
+ @~a{foo
+     bfofofoar})
+
 ;;; undo/redo
 (check-vim
  @~a{#lang racket
