@@ -534,4 +534,31 @@
  '(#\$ #\0 #\x)
  @~a{lang racket})
 
+;; Issue #39
+(check-vim
+  @~a{#lang racket
+
+      (define x
+        (compile
+         #'(begin
+             +
+             (define + 5)
+             +)))}
+  '(#\: #\3 #\return #\V #\j #\j #\j #\j #\j #\y
+    #\: #\9 #\return #\p)
+  @~a{#lang racket
+
+      (define x
+        (compile
+         #'(begin
+             +
+             (define + 5)
+             +)))
+      (define x
+        (compile
+         #'(begin
+             +
+             (define + 5)
+             +)))})
+
 (exit)
