@@ -124,7 +124,9 @@
           (unless (at-start-of-line?)
             (move-position 'left)))
         (update-mode!)
-        (do-caret-update))
+        (do-caret-update)
+        (when (eq? new-mode 'insert)
+          (flash-off)))
 
       ;; handle the GUI portion of setting the mode line
       (define/private (update-mode!)
@@ -211,7 +213,8 @@
         (get-position start end)
         (define-values (start-val end-val) (values (unbox start) (unbox end)))
         (cond [(and (not (empty-line?))
-                    (not (at-end-of-line?)))
+                    (not (at-end-of-line?))
+                    (not (eq? mode 'insert)))
                ;; The use of hide-caret here and below for some reason causes
                ;; the "fake" caret drawn in the on-paint method below to contain
                ;; some extra blank space. So instead live with a real caret
@@ -227,9 +230,10 @@
                      end-val))
                (flash-off)
                (flash-on start* end* #f #t 500000000)]
-              [else
+              [(not (eq? mode 'insert))
                ;(hide-caret #t)
-               (invalidate-bitmap-cache)]))
+               (invalidate-bitmap-cache)]
+              [else (void)]))
 
       ;; override painting to draw an extra selection at the end of the line
       ;; like vim does.
