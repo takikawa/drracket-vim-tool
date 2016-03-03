@@ -500,4 +500,10 @@
  @~a{(let ([x 5])
        x)})
 
+;; Issue #67
+(check-vim
+ @~a{#lang racket}
+ '(#\$ #\0 #\x)
+ @~a{lang racket})
+
 (exit)

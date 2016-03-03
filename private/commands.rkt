@@ -70,6 +70,11 @@
         'release
         'press))
 
+;; Key-Code -> Boolean
+(define (digit? char)
+  (and (char? char)
+       (memq char '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))))
+
 ;; Key-Event% (-> Key-Event%) -> Command
 ;; Parse a single command
 (define (parse-command key *next-key)
@@ -86,7 +91,9 @@
   (define code (send key get-key-code))
   (match code
     ;; repeats
-    [(? (conjoin char? char-numeric?) digit)
+    [(? digit? digit)
+     ;; '0' cannot start a repeat sequence in vim
+     #:when (not (eq? #\0 digit))
      (parse-repeat code next-key)]
 
     ;; multi-char/motion commands
@@ -161,7 +168,7 @@
     (match (send event get-key-code)
       [#\G
        (goto-command (if (zero? num) 'last-line num))]
-      [(? (conjoin char? char-numeric?) digit)
+      [(? digit? digit)
        (loop (+ (char-numeric->number digit) (* 10 num)))]
       [_
        (repeat-command num (parse-command event next-key))])))
