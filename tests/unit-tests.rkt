@@ -301,6 +301,34 @@
  @~a{foo
      bfofofoar})
 
+;;; ex commands
+(check-vim
+ @~a{#lang racket
+     abcdef
+     lastline}
+ '(#\: #\3 #\return #\x)
+ @~a{#lang racket
+     abcdef
+     astline})
+
+(check-vim
+ @~a{#lang racket
+     abcdef
+     lastline}
+ '(#\j #\: #\0 #\return #\x)
+ @~a{#lang racket
+     bcdef
+     lastline})
+
+(check-vim
+ @~a{#lang racket
+     abcdef
+     lastline}
+ '(#\j #\: #\1 #\1 #\3 #\return #\x)
+ @~a{#lang racket
+     abcdef
+     astline})
+
 ;;; undo/redo
 (check-vim
  @~a{#lang racket

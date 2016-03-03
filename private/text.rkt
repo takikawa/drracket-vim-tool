@@ -749,6 +749,8 @@
       ;; run the current ex command
       (define/private (run-ex-command)
         (match (list->string (gvector->list ex-queue))
+          [(app string->number (? exact-positive-integer? num))
+           (set-position (line-start-position (sub1 num)))]
           ["q" (send parent-frame close-current-tab)]
           ["w" (send this save-file)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
