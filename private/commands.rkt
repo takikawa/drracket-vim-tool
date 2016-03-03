@@ -162,7 +162,8 @@
     [_ #f]))
 
 (define (parse-repeat digit next-key)
-  (define (char-numeric->number x) (string->number (string x)))
+  (define (char-numeric->number x)
+    (- (char->integer x) (char->integer #\0)))
   (let loop ([num (char-numeric->number digit)])
     (define event (next-key))
     (match (send event get-key-code)
