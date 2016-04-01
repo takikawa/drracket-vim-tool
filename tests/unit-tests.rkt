@@ -217,6 +217,21 @@
  '(#\l #\l #\C #\x)
  @~a{#lx})
 
+(check-vim
+ @~a{abcdef}
+ '(#\c #\a #\w #\x)
+ @~a{x})
+
+(check-vim
+ @~a{abc def}
+ '(#\l #\l #\l #\l #\c #\a #\w #\x)
+ @~a{abcx})
+
+(check-vim
+ @~a{(abc def)}
+ '(#\c #\% #\x)
+ @~a{x})
+
 ;;; deletion / yanking / pasting
 (check-vim
  @~a{#lang racket

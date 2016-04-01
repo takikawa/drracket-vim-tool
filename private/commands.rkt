@@ -231,7 +231,9 @@
   (match code
     [#\c 'change-line]
     ;; FIXME: implement change with motions
-    [_   #f]))
+    [_
+     (define motion (parse-motion key next-key))
+     (and motion (motion-command 'change motion))]))
 
 (define (parse-motion first-key next-key)
   (define code (send first-key get-key-code))

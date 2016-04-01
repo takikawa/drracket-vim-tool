@@ -447,8 +447,19 @@
       (define/private (handle-motion-command command)
         (match-define (motion-command operation motion) command)
         (match operation
+          ['change (handle-change motion)]
           ['delete (handle-delete motion)]
           ['yank   (handle-yank motion)]))
+
+      ;; handle change based on a motion
+      (define/private (handle-change motion)
+        (match motion
+          ['word  (do-word (λ (s e) (send this kill 0 s e)))]
+          ['match (do-matching-paren
+                    (λ (_ s e) (and s e (send this kill 0 s e))))]
+          ['right (do-character (λ (s e) (send this kill 0 s e)))])
+        (set-mode! 'insert)
+        (adjust-caret-eol))
 
       ;; handle deletion based on a motion
       (define/private (handle-delete motion)
