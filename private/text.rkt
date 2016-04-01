@@ -468,13 +468,18 @@
       ;; functions to customize it appropriately for specific commands.
       (define/private (handle-motion motion do-range do-pre do-post)
         (do-pre)
-        (match motion
-          ['a-word (do-a-word do-range)]
-          ['word-forward (do-word-forward do-range)]
-          ['match (do-matching-paren
-                    (λ (_ s e) (and s e (do-range s e))))]
-          ['right (do-character do-range)])
-        (do-post))
+        (define ok?
+          (match motion
+            ['a-word (do-a-word do-range)]
+            ['word-forward (do-word-forward do-range)]
+            ['match (do-matching-paren
+                      (λ (_ s e) (and s e (do-range s e))))]
+            ['left  (do-character do-range 'backward)]
+            ['down  (do-one-line do-range 'down)]
+            ['up    (do-one-line do-range 'up)]
+            ['right (do-character do-range)]))
+        (when ok?
+          (do-post)))
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste)
@@ -596,12 +601,31 @@
           (find-wordbreak start end 'selection)
           (f (unbox start) (unbox end))))
 
-      (define-syntax-rule (do-character f)
+      (define (do-character f [dir 'forward])
         (let ([start (box 0)]
               [end (box 0)])
           (get-position start)
           (get-position end)
-          (f (unbox start) (+ 1 (unbox end)))))
+          (cond [(eq? dir 'forward)
+                 (f (unbox start) (+ 1 (unbox end)))]
+                [(and (eq? dir 'backward)
+                      (not (at-start-of-line?)))
+                 (f (- (unbox start) 1) (unbox end))]
+                [else #f])))
+
+      (define/private (do-one-line f [dir 'up])
+        (define-values (start end)
+          (values (get-start-position) (get-end-position)))
+        (define cur-line (position-line start))
+        (cond [(and (eq? dir 'up)
+                    (>= (sub1 cur-line) 0))
+               (f (line-start-position (sub1 cur-line))
+                  (line-end-position cur-line))]
+              [(and (eq? dir 'down)
+                    (<= (add1 cur-line) (last-line)))
+               (f (line-start-position cur-line)
+                  (line-end-position (add1 cur-line)))]
+              [else #f]))
 
       ;; clear the command continuation
       (define/private (clear-cont!)

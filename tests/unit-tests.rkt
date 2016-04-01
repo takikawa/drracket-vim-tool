@@ -208,6 +208,40 @@
  @~a{x})
 
 (check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\c #\j #\x)
+ @~a{x})
+
+(check-vim
+ @~a{abcdef}
+ '(#\c #\j #\x)
+ @~a{bcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\l #\l #\c #\h #\x)
+ @~a{#xang racket
+     abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\j #\c #\k #\x)
+ @~a{x})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\c #\k #\x)
+ @~a{lang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\c #\l #\x)
+ @~a{xlang racket})
+
+(check-vim
  @~a{#lang racket}
  '(#\S #\x)
  @~a{x})
@@ -243,6 +277,35 @@
      abcdef}
  '(#\d #\d)
  @~a{abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\d #\j)
+ @~a{})
+
+(check-vim
+ @~a{abcdef}
+ '(#\d #\j)
+ @~a{abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\l #\l #\d #\h)
+ @~a{#ang racket
+     abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ '(#\j #\d #\k)
+ @~a{})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\d #\k)
+ @~a{#lang racket})
 
 (check-vim
  @~a{abc def}
@@ -352,6 +415,11 @@
 (check-vim
  @~a{#lang racket}
  '(#\d #\space)
+ @~a{lang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\d #\l)
  @~a{lang racket})
 
 ;; Issue #66

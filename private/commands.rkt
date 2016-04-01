@@ -245,9 +245,12 @@
            [#\w 'a-word]
            [#\p 'a-paragraph]
            [_    #f])]
+    [#\h     'left]
+    [#\j     'down]
+    [#\k     'up]
     [#\w     'word-forward]
     [#\b     'word-backward]
     [#\%     'match]
     [#\"     'double-quote]
-    [#\space 'right]
+    [(or #\space #\l) 'right]
     [_   #f]))
