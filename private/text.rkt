@@ -306,7 +306,10 @@
                begin-edit-sequence end-edit-sequence
                get-character find-newline
                get-forward-sexp get-backward-sexp
-               tabify-selection)
+               tabify-selection
+
+               ;; from color:text<%>
+               skip-whitespace)
 
       ;; mode string for mode line
       ;; -> string?
@@ -362,7 +365,7 @@
           ['insert-line
            (set-mode! 'insert)
            (move-position 'left #f 'line)
-           (skip-whitespace)]
+           (set-position (skip-whitespace-forward))]
           ['insert-previous-line
            (set-mode! 'insert)
            (insert-line-before)]
@@ -454,17 +457,18 @@
       ;; handle change based on a motion
       (define/private (handle-change motion)
         (match motion
-          ['word  (do-word (λ (s e) (send this kill 0 s e)))]
+          ['a-word (do-a-word (λ (s e) (send this kill 0 s e)))]
+          ['word-forward (do-word-forward (λ (s e) (send this kill 0 s e)))]
           ['match (do-matching-paren
                     (λ (_ s e) (and s e (send this kill 0 s e))))]
           ['right (do-character (λ (s e) (send this kill 0 s e)))])
-        (set-mode! 'insert)
-        (adjust-caret-eol))
+        (set-mode! 'insert))
 
       ;; handle deletion based on a motion
       (define/private (handle-delete motion)
         (match motion
-          ['word  (do-word (λ (s e) (send this kill 0 s e)))]
+          ['a-word (do-a-word (λ (s e) (send this kill 0 s e)))]
+          ['word-forward (do-word-forward (λ (s e) (send this kill 0 s e)))]
           ['match (do-matching-paren
                     (λ (_ s e) (and s e (send this kill 0 s e))))]
           ['right (do-character (λ (s e) (send this kill 0 s e)))])
@@ -475,7 +479,8 @@
         (set! paste-type 'normal)
         (let ([copier (lambda (s e) (send this copy #f 0 s e))])
           (match motion
-            ['word  (do-word copier)]
+            ['a-word (do-a-word copier)]
+            ['word-forward (do-word-forward copier)]
             ['match (do-matching-paren
                       (λ (_ s e) (and s e (copier s e))))]
             ['right (do-character copier)])))
@@ -567,7 +572,32 @@
                    (send this kill 0 s e)
                    (send this move-position 'left #f 'line))))
 
-      (define-syntax-rule (do-word f)
+      (define (do-a-word f)
+        (let ([start (box 0)]
+              [end (box 0)])
+          (get-position start)
+          (get-position end)
+          (find-wordbreak start end 'selection)
+          (define start-pos (unbox start))
+          (define end-pos (unbox end))
+          (cond [;; whitespace before word and not the first word
+                 (let ([bpos (skip-whitespace-backward start-pos)])
+                   (and (not (= bpos start-pos))
+                        (= (position-line bpos) (position-line start-pos))
+                        bpos))
+                 =>
+                 (λ (bpos) (f bpos end-pos))]
+                [;; whitespace after word up to end of line/word
+                 (let ([fpos (skip-whitespace-forward end-pos)])
+                   (and (not (= fpos end-pos))
+                        (= (position-line fpos) (position-line end-pos))
+                        fpos))
+                 =>
+                 (λ (fpos) (f start-pos fpos))]
+                [;; otherwise do f with just the word
+                 (f start-pos end-pos)])))
+
+      (define (do-word-forward f)
         (let ([start (box 0)]
               [end (box 0)])
           (get-position start)
@@ -797,13 +827,15 @@
           (set-position newline-pos)
           (end-edit-sequence)))
 
-      ;; move the cursor until whitespace is skipped
-      (define/private (skip-whitespace)
-        (let loop ([char (get-character (get-start-position))])
-          (when (and (char-whitespace? char)
-                     (not (eq? #\newline char)))
-            (move-position 'right)
-            (loop (get-character (get-start-position))))))
+      (define/private (skip-whitespace-forward [pos #f])
+        (skip-whitespace (or pos (get-start-position))
+                         'forward
+                         #f))
+
+      (define/private (skip-whitespace-backward [pos #f])
+        (skip-whitespace (or pos (get-start-position))
+                         'backward
+                         #f))
 
       ;; implements the behavior of "%" and friends in vim
       (define/private (do-matching-paren action)

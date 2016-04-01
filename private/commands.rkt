@@ -46,9 +46,12 @@
 ;;       folding, and function calls from vim
 ;;
 ;; A Motion is one of
-;;   - 'word
+;;   - 'a-word
+;;   - 'inner-word
+;;   - 'word-forward
+;;   - 'word-backward
 ;;   - 'sentence
-;;   - 'paragraph
+;;   - 'a-paragraph
 ;;   - 'match
 ;;   - 'double-quote
 ;;   - (repeat-motion Repeat Motion)
@@ -239,9 +242,11 @@
   (define code (send first-key get-key-code))
   (match code
     [#\a (match (send (next-key) get-key-code)
-           [#\w 'word]
-           [#\p 'paragraph]
+           [#\w 'a-word]
+           [#\p 'a-paragraph]
            [_    #f])]
+    [#\w     'word-forward]
+    [#\b     'word-backward]
     [#\%     'match]
     [#\"     'double-quote]
     [#\space 'right]

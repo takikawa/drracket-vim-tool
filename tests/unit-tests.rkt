@@ -228,6 +228,11 @@
  @~a{abcx})
 
 (check-vim
+ @~a{abc def ghi}
+ '(#\l #\l #\l #\l #\c #\a #\w #\x)
+ @~a{abcx ghi})
+
+(check-vim
  @~a{(abc def)}
  '(#\c #\% #\x)
  @~a{x})
@@ -238,6 +243,32 @@
      abcdef}
  '(#\d #\d)
  @~a{abcdef})
+
+(check-vim
+ @~a{abc def}
+ '(#\l #\l #\l #\l #\d #\a #\w)
+ @~a{abc})
+
+(check-vim
+ @~a{abc def}
+ '(#\l #\l #\l #\l #\d #\a #\w #\i #\d)
+ @~a{abdc})
+
+(check-vim
+ @~a{abc def ghi}
+ '(#\l #\l #\l #\l #\d #\a #\w)
+ @~a{abc ghi})
+
+(check-vim
+ @~a{abc def ghi}
+ '(#\d #\a #\w)
+ @~a{def ghi})
+
+(check-vim
+ @~a{abc
+     def}
+ '(#\d #\a #\w)
+ "\ndef")
 
 (check-vim
  @~a{#lang racket}
