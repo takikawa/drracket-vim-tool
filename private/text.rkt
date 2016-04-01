@@ -324,9 +324,11 @@
 
       ;; check whether an event is equivalent to "escape"
       (define/private (check-escape event)
-        (or (eq? (send event get-key-code) 'escape)
-            (and (equal? (send event get-key-code) #\c)
-                 (send event get-control-down))))
+        (let ([key-code (send event get-key-code)])
+          (or (eq? key-code 'escape)
+              (and (send event get-control-down)
+                   (or (eq? key-code #\c)
+                       (eq? key-code #\[))))))
 
       ;; handles command-mode operations
       ;; Command -> Void

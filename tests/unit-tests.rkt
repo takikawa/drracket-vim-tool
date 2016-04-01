@@ -9,6 +9,9 @@
 (define ctrl-c
   (new key-event% [key-code #\c] [control-down #t]))
 
+(define ctrl-lsb
+  (new key-event% [key-code #\[] [control-down #t]))
+
 ;;; basic movement and editing
 (check-vim
  @~a{#lang racket
@@ -35,6 +38,13 @@
  @~a{#lang racket
      abcdef}
  `(#\l #\i #\a #\b ,ctrl-c #\x)
+ @~a{#alang racket
+     abcdef})
+
+(check-vim
+ @~a{#lang racket
+     abcdef}
+ `(#\l #\i #\a #\b ,ctrl-lsb #\x)
  @~a{#alang racket
      abcdef})
 
@@ -222,6 +232,11 @@
 (check-vim
  @~a{#lang racket}
  `(#\d ,ctrl-c #\d)
+ @~a{#lang racket})
+
+(check-vim
+ @~a{#lang racket}
+ `(#\d ,ctrl-lsb #\d)
  @~a{#lang racket})
 
 (check-vim
@@ -424,6 +439,11 @@
 (check-vim
  @~a{      abcdef}
  `(#\A ,ctrl-c #\I #\z)
+ @~a{      zabcdef})
+
+(check-vim
+ @~a{      abcdef}
+ `(#\A ,ctrl-lsb #\I #\z)
  @~a{      zabcdef})
 
 ;; issue #45
