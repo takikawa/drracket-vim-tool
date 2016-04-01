@@ -450,40 +450,31 @@
       (define/private (handle-motion-command command)
         (match-define (motion-command operation motion) command)
         (match operation
-          ['change (handle-change motion)]
-          ['delete (handle-delete motion)]
-          ['yank   (handle-yank motion)]))
+          ['change (handle-motion motion
+                                  (λ (s e) (send this kill 0 s e))
+                                  void
+                                  (λ () (set-mode! 'insert)))]
+          ['delete (handle-motion motion
+                                  (λ (s e) (send this kill 0 s e))
+                                  void
+                                  (λ () (adjust-caret-eol)))]
+          ['yank   (handle-motion motion
+                                  (λ (s e) (send this copy #f 0 s e))
+                                  (λ () (set! paste-type 'normal))
+                                  void)]))
 
-      ;; handle change based on a motion
-      (define/private (handle-change motion)
+      ;; motion (-> pos pos void) (-> void) (-> void) -> void
+      ;; Abstracted handling of motion commands. Pass in argument
+      ;; functions to customize it appropriately for specific commands.
+      (define/private (handle-motion motion do-range do-pre do-post)
+        (do-pre)
         (match motion
-          ['a-word (do-a-word (λ (s e) (send this kill 0 s e)))]
-          ['word-forward (do-word-forward (λ (s e) (send this kill 0 s e)))]
+          ['a-word (do-a-word do-range)]
+          ['word-forward (do-word-forward do-range)]
           ['match (do-matching-paren
-                    (λ (_ s e) (and s e (send this kill 0 s e))))]
-          ['right (do-character (λ (s e) (send this kill 0 s e)))])
-        (set-mode! 'insert))
-
-      ;; handle deletion based on a motion
-      (define/private (handle-delete motion)
-        (match motion
-          ['a-word (do-a-word (λ (s e) (send this kill 0 s e)))]
-          ['word-forward (do-word-forward (λ (s e) (send this kill 0 s e)))]
-          ['match (do-matching-paren
-                    (λ (_ s e) (and s e (send this kill 0 s e))))]
-          ['right (do-character (λ (s e) (send this kill 0 s e)))])
-        (adjust-caret-eol))
-
-      ;; handle yanking based on a motion
-      (define/private (handle-yank motion)
-        (set! paste-type 'normal)
-        (let ([copier (lambda (s e) (send this copy #f 0 s e))])
-          (match motion
-            ['a-word (do-a-word copier)]
-            ['word-forward (do-word-forward copier)]
-            ['match (do-matching-paren
-                      (λ (_ s e) (and s e (copier s e))))]
-            ['right (do-character copier)])))
+                    (λ (_ s e) (and s e (do-range s e))))]
+          ['right (do-character do-range)])
+        (do-post))
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste)
