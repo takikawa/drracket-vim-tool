@@ -595,15 +595,16 @@
                 [;; otherwise do f with just the word
                  (f start-pos end-pos)])))
 
+      ;; (position position -> any) -> any
+      ;; handle a word forward motion, using f as the action
       (define (do-word-forward f)
-        (let ([start (box 0)]
-              [end (box 0)])
-          (get-position start)
-          (get-position end)
-          (find-wordbreak start end 'selection)
-          (f (get-start-position)
-             ;; vim includes whitespace up to next word
-             (skip-whitespace-forward (unbox end)))))
+        (define-values (start end) (values (box 0) (box 0)))
+        (get-position start)
+        (get-position end)
+        (find-wordbreak start end 'selection)
+        (f (get-start-position)
+           ;; vim includes whitespace up to next word
+           (skip-whitespace-forward (unbox end))))
 
       ;; (position position -> any) -> any
       ;; handle a word backward motion, using f as the action
