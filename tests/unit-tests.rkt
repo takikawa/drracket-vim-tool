@@ -344,6 +344,16 @@
  @~a{def})
 
 (check-vim
+ @~a{abc def}
+ '(#\d #\b)
+ @~a{abc def})
+
+(check-vim
+ @~a{abc def}
+ '(#\w #\d #\b)
+ @~a{def})
+
+(check-vim
  @~a{abc def ghi}
  '(#\w #\d #\w)
  @~a{abc ghi})

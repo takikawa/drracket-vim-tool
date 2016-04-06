@@ -473,6 +473,7 @@
           (match motion
             ['a-word (do-a-word do-range)]
             ['word-forward (do-word-forward do-range)]
+            ['word-backward (do-word-backward do-range)]
             ['match (do-matching-paren
                       (λ (_ s e) (and s e (do-range s e))))]
             ['left  (do-character do-range 'backward)]
@@ -603,6 +604,19 @@
           (f (get-start-position)
              ;; vim includes whitespace up to next word
              (skip-whitespace-forward (unbox end)))))
+
+      ;; (position position -> any) -> any
+      ;; handle a word backward motion, using f as the action
+      (define (do-word-backward f)
+        (and (not (at-start-of-line?))
+             (let ()
+               (begin-edit-sequence)
+               (define orig (get-start-position))
+               (move-position 'left #f 'word)
+               (define word-start (get-start-position))
+               (set-position orig)
+               (f word-start orig)
+               (end-edit-sequence))))
 
       (define (do-character f [dir 'forward])
         (let ([start (box 0)]
