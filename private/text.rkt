@@ -397,7 +397,8 @@
           ['right         (move-position 'right)]
           ['next-page     (move-position 'down #f 'page)]
           ['previous-page (move-position 'up #f 'page)]
-          ['next-word     (move-position 'right #f 'word)]
+          ['next-word     (move-position 'right #f 'word)
+                          (set-position (skip-whitespace-forward))]
           ['previous-word (move-position 'left #f 'word)]
           ['continue
            (define-values (start end) (get-current-line-start-end))
@@ -599,7 +600,9 @@
           (get-position start)
           (get-position end)
           (find-wordbreak start end 'selection)
-          (f (unbox start) (unbox end))))
+          (f (get-start-position)
+             ;; vim includes whitespace up to next word
+             (skip-whitespace-forward (unbox end)))))
 
       (define (do-character f [dir 'forward])
         (let ([start (box 0)]

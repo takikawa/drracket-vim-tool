@@ -104,6 +104,11 @@
      #lang racket})
 
 (check-vim
+  @~a{abc def}
+  '(#\w #\x)
+  @~a{abc ef})
+
+(check-vim
  @~a{#lang racket}
  '(#\a #\a #\b #\c)
  @~a{#abclang racket})
@@ -332,6 +337,21 @@
      def}
  '(#\d #\a #\w)
  "\ndef")
+
+(check-vim
+ @~a{abc def}
+ '(#\d #\w)
+ @~a{def})
+
+(check-vim
+ @~a{abc def ghi}
+ '(#\w #\d #\w)
+ @~a{abc ghi})
+
+(check-vim
+ @~a{abc def ghi}
+ '(#\l #\d #\w)
+ @~a{adef ghi})
 
 (check-vim
  @~a{#lang racket}
