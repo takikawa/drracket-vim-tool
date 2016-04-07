@@ -806,17 +806,23 @@
                  (when (get-replace-search-hit)
                    (set-position (get-replace-search-hit)))])))
 
-      (define/private (do-previous-search)
+      ;; [position] -> void
+      ;; execute a search going backwards from start-pos
+      (define/private (do-previous-search [start-pos (get-start-position)])
         (when search-string
-          (define pos (get-start-position))
           (define bubbles (get-search-bubbles))
           ;; ASSUMPTION: bubbles are ordered by position
           (define matching-bubble
             (for/last ([bubble (in-list bubbles)]
-                       #:when (< (caar bubble) pos))
+                       #:when (< (caar bubble) start-pos))
               bubble))
-          (when matching-bubble
-            (set-position (caar matching-bubble)))))
+          (cond [(null? bubbles) (void)]
+                [matching-bubble
+                 (set-position (caar matching-bubble))]
+                [;; there are other search hits but there wasn't
+                 ;; a match, therefore we have to loop from the end
+                 else
+                 (do-previous-search (last-position))])))
 
       ;; (is-a?/c key-event%) -> void
       ;; handle ex commands

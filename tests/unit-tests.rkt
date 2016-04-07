@@ -539,7 +539,7 @@
  @~a{test
 
      test}
- '(#\/ #\t #\e #\s #\t #\return #\N #\x)
+ '(#\l #\/ #\t #\e #\s #\t #\return #\N #\x)
  @~a{est
 
      test})
@@ -565,6 +565,15 @@
      est
 
      test})
+
+(check-vim
+ @~a{test
+
+     test}
+ '(#\l #\/ #\t #\e #\s #\t #\return #\N #\N #\x)
+ @~a{test
+
+     est})
 
 ;;; Select / visual mode
 (check-vim
