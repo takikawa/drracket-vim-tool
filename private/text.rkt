@@ -445,6 +445,7 @@
           ;; search
           ['search      (set-mode! 'search)]
           ['next-search (do-next-search #t)]
+          ['prev-search (do-previous-search)]
 
           [_   (void)]))
 
@@ -747,10 +748,10 @@
 
 
       ;; searching
-      ;; TODO: - backwards search
       (inherit set-searching-state
                get-search-hit-count
                get-replace-search-hit
+               get-search-bubbles
                finish-pending-search-work)
 
       ;; (is-a?/c key-event%) -> void?
@@ -804,6 +805,18 @@
                  (finish-pending-search-work)
                  (when (get-replace-search-hit)
                    (set-position (get-replace-search-hit)))])))
+
+      (define/private (do-previous-search)
+        (when search-string
+          (define pos (get-start-position))
+          (define bubbles (get-search-bubbles))
+          ;; ASSUMPTION: bubbles are ordered by position
+          (define matching-bubble
+            (for/last ([bubble (in-list bubbles)]
+                       #:when (< (caar bubble) pos))
+              bubble))
+          (when matching-bubble
+            (set-position (caar matching-bubble)))))
 
       ;; (is-a?/c key-event%) -> void
       ;; handle ex commands

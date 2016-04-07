@@ -535,6 +535,37 @@
 
      test})
 
+(check-vim
+ @~a{test
+
+     test}
+ '(#\/ #\t #\e #\s #\t #\return #\N #\x)
+ @~a{est
+
+     test})
+
+(check-vim
+ @~a{test
+
+     test}
+ '(#\/ #\t #\e #\s #\t #\return #\n #\N #\x)
+ @~a{est
+
+     test})
+
+(check-vim
+ @~a{test
+
+     test
+
+     test}
+ '(#\/ #\t #\e #\s #\t #\return #\n #\n #\N #\x)
+ @~a{test
+
+     est
+
+     test})
+
 ;;; Select / visual mode
 (check-vim
  @~a{#lang racket

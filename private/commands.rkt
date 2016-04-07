@@ -161,6 +161,7 @@
     ;; search
     [#\/     'search]
     [#\n     'next-search]
+    [#\N     'prev-search]
 
     [_ #f]))
 
