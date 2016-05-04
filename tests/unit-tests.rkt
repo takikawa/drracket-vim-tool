@@ -641,7 +641,7 @@
  @~a{abc
      abc}
  '(#\J #\x)
- @~a{abc bc})
+ @~a{abcabc})
 
 (check-vim
  @~a{abc

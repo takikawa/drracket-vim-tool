@@ -37,8 +37,7 @@
                    line-start-position line-end-position position-line
                    get-view-size local-to-global
                    find-wordbreak get-admin
-                   get-style-list get-padding
-                   flash-on flash-off)
+                   get-style-list get-padding)
           (super on-local-char on-paint))
       (class/c
         [on-paint on-paint/c]
@@ -51,6 +50,10 @@
 (define vim-prompt-tag (make-continuation-prompt-tag))
 
 (define-local-member-name parent-frame)
+
+;; constants for coloring
+(define cursor-color "slategray")
+(define selection-color "lightsteelblue")
 
 (define vim-emulation-mixin
   (λ (cls)
@@ -73,6 +76,15 @@
       ;; Editing modes: 'command 'insert 'visual
       ;; Bookkeeping: 'search
       (define mode 'command)
+
+      ;; This variable tracks a vim-mode position that is separate from the
+      ;; "position" that is tracked by the underlying editor. This allows, for example,
+      ;; the selection to be separate from the cursor position in visual mode. It
+      ;; also allows the vim plugin to set the position depending on the current character,
+      ;; e.g., to cooperate with parenthesis matching.
+      ;;
+      ;; This position is often the same as the underlying text position though.
+      (define vim-position 0)
 
       ;; used to build up a search string
       (define search-queue (make-queue))
@@ -104,39 +116,51 @@
       (define/private (search-queue->string)
         (list->string (reverse (queue->list search-queue))))
 
+      ;; called to update the mode and do any transition work between modes
       (define/private (set-mode! new-mode)
         (define old-mode mode)
         (set! mode new-mode)
+
+        ;; only show caret in insert mode
+        (cond [(eq? new-mode 'insert)
+               (hide-caret #f)]
+              [else (hide-caret #t)])
+
         (when (eq? new-mode 'visual-line) 
           (set! visual-line-mode-direction 'same)
+          (set-position vim-position)
           (move-position 'left #f 'line)
           (move-position 'right #t 'line))
-        (when (and (eq? new-mode 'visual)
-                   (= (get-start-position)
-                      (get-end-position)))
+        (when (eq? new-mode 'visual)
           ;; extend selection when entering visual mode to avoid having
           ;; nothing selected initially
+          (set-position vim-position)
           (move-position 'right #t))
+
         (when (eq? new-mode 'search)
           (set! search-queue (make-queue)))
         (when (and (eq? new-mode 'command)
                    (eq? old-mode 'insert))
+          (set-vim-position! (get-start-position))
           (unless (at-start-of-line?)
-            (move-position 'left)))
+            (cmd-move-position 'left)))
         (update-mode!)
         (do-caret-update)
         (when (eq? new-mode 'insert)
-          (flash-off)))
+          (set-position vim-position)
+          (hide-caret #f)))
+
+      ;; called to set the vim position, needed to make sure GUI updates are done
+      ;; after a position is set (since `after-set-position` is not called for this)
+      (define (set-vim-position! pos)
+        (set! vim-position pos)
+        (do-caret-update))
 
       ;; handle the GUI portion of setting the mode line
       (define/private (update-mode!)
         (send parent-frame set-vim-status-message (mode-string)))
 
       (define mode-padding 3)
-
-      ;; use cmdline-style caret rendering as opposed to the GUI vim
-      ;; style which uses a caret like "I" when in insert mode
-      (define cmdline-caret? #t)
 
       ;; continuation into key handling routine
       (define key-cont #f)
@@ -150,8 +174,7 @@
       (define paste-type 'normal)
 
       ;; ==== overrides & augments ====
-      (inherit flash-on flash-off line-length hide-caret
-               position-location get-line-spacing)
+      (inherit line-length hide-caret position-location get-line-spacing)
 
       ;; override character handling and dispatch based on mode
       ;; is-a?/c key-event% -> void?
@@ -167,8 +190,9 @@
                       (and command
                            (handle-command command))]
                      [(eq? mode 'insert)  (do-insert event)]
-                     [(eq? mode 'visual)  (do-visual event)]
-                     [(eq? mode 'visual-line) (do-visual-line event)]
+                     [(or (eq? mode 'visual)
+                          (eq? mode 'visual-line))
+                      (do-visual event)]
                      [(eq? mode 'search) (do-search event)]
                      [(eq? mode 'ex) (do-ex event)]
                      [else (error "Unimplemented mode")])
@@ -195,71 +219,54 @@
 
       (define/augment (after-set-position)
         (inner (void) after-set-position)
-        (when (vim?)
-          ;; Don't allow navigation to the "end of line" position when
-          ;; in command mode, since this goes "off the end" in vim
-          (when (eq? mode 'command)
-            (define-values (start end) (values (box #f) (box #f)))
-            (get-position start end)
-            (define-values (start-val end-val) (values (unbox start) (unbox end)))
-            (when (and (= start-val end-val)
-                       (not (empty-line?))
-                       (at-end-of-line?))
-              (set-position (sub1 start-val) (sub1 end-val))))
-          (do-caret-update)))
+        (do-caret-update))
 
+      ;; handle updating the drawing of the cursor/selection after movements
+      ;; or other editing actions
       (define/private (do-caret-update)
-        (define-values (start end) (values (box #f) (box #f)))
-        (get-position start end)
-        (define-values (start-val end-val) (values (unbox start) (unbox end)))
+        (unhighlight-ranges/key 'drracket-vim-highlight)
+
+        ;; draw the cursor
         (cond [(and (not (empty-line?))
                     (not (at-end-of-line?))
                     (not (eq? mode 'insert)))
-               ;; The use of hide-caret here and below for some reason causes
-               ;; the "fake" caret drawn in the on-paint method below to contain
-               ;; some extra blank space. So instead live with a real caret
-               ;; being temporarily painted over our fake one for now.
-               ;(hide-caret #f)
-               ;; for a single character/item selection, try to highlight it
-               ;; like vim will by offsetting by one
-               (define start* start-val)
-               (define end*
-                 (if (and (= start-val end-val)
-                          (not (equal? mode 'insert)))
-                     (add1 end-val)
-                     end-val))
-               (flash-off)
-               (flash-on start* end* #f #t 500000000)]
-              [(not (eq? mode 'insert))
-               ;(hide-caret #t)
-               (invalidate-bitmap-cache)]
-              [else (void)]))
+               (highlight-range vim-position (add1 vim-position) cursor-color
+                                #:key 'drracket-vim-highlight)]
+              [else
+               (invalidate-bitmap-cache)])
+
+        (when (or (eq? mode 'visual)
+                  (eq? mode 'visual-line))
+          (highlight-range (get-start-position)
+                           (get-end-position)
+                           selection-color
+                           #f
+                           'low ; to draw under the cursor
+                           #:key 'drracket-vim-highlight)))
 
       ;; override painting to draw an extra selection at the end of the line
       ;; like vim does.
       (define/override (on-paint before? dc left top right bottom
                                  dx dy draw-caret)
         (super on-paint before? dc left top right bottom dx dy draw-caret)
-        (when (and (vim?) cmdline-caret? (not before?))
-          (define-values (start end) (values (box #f) (box #f)))
-          (get-position start end)
-          (define-values (start-val end-val) (values (unbox start) (unbox end)))
-          (define cur-line (position-line start-val))
-          (when (and (= start-val end-val)
-                     (= (line-end-position cur-line) start-val))
+        (when (and (vim?)
+                   (not (eq? mode 'insert))
+                   (not before?))
+          (define cur-line (position-line vim-position))
+          (when (= (line-end-position cur-line) vim-position)
             (define-values (x y) (values (box #f) (box #f)))
-            (position-location start-val x y #t #f #t)
+            (position-location vim-position x y #t #f #t)
             (define-values (x-val y-val)
               (values (+ dx (unbox x)) (+ dy (unbox y))))
             (when (and (<= left x-val right)
                        ;; the y-coord gets larger as it goes to the bottom
                        (>= bottom y-val top))
               (define y-bottom (box #f))
-              (position-location start-val #f y-bottom #f #f #t)
+              (position-location vim-position #f y-bottom #f #f #t)
               (define old-brush (send dc get-brush))
               (define old-pen (send dc get-pen))
               (define new-brush
-                (new brush% [color (get-highlight-background-color)]))
+                (new brush% [color cursor-color]))
               (define new-pen (new pen% [style 'transparent]))
               (send dc set-brush new-brush)
               (send dc set-pen new-pen)
@@ -309,7 +316,10 @@
                tabify-selection
 
                ;; from color:text<%>
-               skip-whitespace)
+               skip-whitespace
+
+               ;; from text:basic<%>
+               highlight-range unhighlight-ranges/key)
 
       ;; mode string for mode line
       ;; -> string?
@@ -345,8 +355,8 @@
           [(? goto-command?)
            (match-define (goto-command line) command)
            (if (eq? line 'last-line)
-               (set-position (line-start-position (last-line)))
-               (set-position (line-start-position (sub1 line))))]
+               (set-vim-position! (line-start-position (last-line)))
+               (set-vim-position! (line-start-position (sub1 line))))]
           [_ (handle-simple-command command)]))
 
       ;; handle a command with no motion/repeat
@@ -365,7 +375,7 @@
           ['insert-line
            (set-mode! 'insert)
            (move-position 'left #f 'line)
-           (set-position (skip-whitespace-forward))]
+           (set-position (skip-whitespace-forward (get-start-position)))]
           ['insert-previous-line
            (set-mode! 'insert)
            (insert-line-before)]
@@ -391,38 +401,38 @@
           ['ex          (set-mode! 'ex)]
 
           ;; movement
-          ['left          (move-position 'left)]
-          ['down          (move-position 'down)]
-          ['up            (move-position 'up)]
-          ['right         (move-position 'right)]
-          ['next-page     (move-position 'down #f 'page)]
-          ['previous-page (move-position 'up #f 'page)]
-          ['next-word     (move-position 'right #f 'word)
-                          (set-position (skip-whitespace-forward))]
-          ['previous-word (move-position 'left #f 'word)]
+          ['left          (cmd-move-position 'left)]
+          ['down          (cmd-move-position 'down)]
+          ['up            (cmd-move-position 'up)]
+          ['right         (cmd-move-position 'right)]
+          ['next-page     (cmd-move-position 'down #f 'page)]
+          ['previous-page (cmd-move-position 'up #f 'page)]
+          ['next-word     (cmd-move-position 'right #f 'word)
+                          (set-vim-position! (skip-whitespace-forward))]
+          ['previous-word (cmd-move-position 'left #f 'word)]
           ['continue
            (define-values (start end) (get-current-line-start-end))
-           (cond [(and (or (= (sub1 end) (get-start-position)) (empty-line?))
+           (cond [(and (or (= (sub1 end) vim-position) (empty-line?))
                        ;; only move if we're not about to hit the end or
                        ;; the next (and last) line is blank
-                       (or (not (= (add1 (get-end-position)) (last-position)))
+                       (or (not (= (add1 vim-position) (last-position)))
                            (equal? #\newline
-                                   (get-character (get-end-position)))))
-                  (move-position 'down)
-                  (move-position 'left #f 'line)]
+                                   (get-character vim-position))))
+                  (cmd-move-position 'down)
+                  (cmd-move-position 'left #f 'line)]
                  [else
-                  (move-position 'right)])]
-          ['start-of-line         (move-position 'left #f 'line)]
-          ['end-of-line           (move-position 'right #f 'line)]
+                  (cmd-move-position 'right)])]
+          ['start-of-line         (cmd-move-position 'left #f 'line)]
+          ['end-of-line           (cmd-move-position 'right #f 'line)]
           ;; FIXME: this is not quite right
-          ['start-of-line-content (move-position 'left #f 'line)]
+          ['start-of-line-content (cmd-move-position 'left #f 'line)]
           ['match (do-matching-paren
                     (λ (dir s e)
                       (match dir
-                        ['backward (set-position s)]
-                        ['forward  (set-position (sub1 e))])))]
-          ['start-of-file (move-position 'home #f)]
-          ['end-of-file   (move-position 'end #f)]
+                        ['backward (set-vim-position! s)]
+                        ['forward  (set-vim-position! (sub1 e))])))]
+          ['start-of-file (cmd-move-position 'home #f)]
+          ['end-of-file   (cmd-move-position 'end #f)]
 
           ;; editing
           ['join-line        (delete-next-newline-and-whitespace)]
@@ -451,15 +461,20 @@
 
       (define/private (handle-motion-command command)
         (match-define (motion-command operation motion) command)
+        (set-position vim-position)
         (match operation
           ['change (handle-motion motion
                                   (λ (s e) (send this kill 0 s e))
                                   void
-                                  (λ () (set-mode! 'insert)))]
+                                  (λ ()
+                                    (set-vim-position! (get-start-position))
+                                    (set-mode! 'insert)))]
           ['delete (handle-motion motion
                                   (λ (s e) (send this kill 0 s e))
                                   void
-                                  (λ () (adjust-caret-eol)))]
+                                  (λ ()
+                                    (set-vim-position! (get-start-position))
+                                    (adjust-caret-eol)))]
           ['yank   (handle-motion motion
                                   (λ (s e) (send this copy #f 0 s e))
                                   (λ () (set! paste-type 'normal))
@@ -489,8 +504,7 @@
         (cond [(or (eq? paste-type 'line)
                    (eq? paste-type 'line-end))
                (begin-edit-sequence)
-               (define end (get-end-position))
-               (define line (position-line end))
+               (define line (position-line vim-position))
                (define num-lines (add1 (last-line)))
                (define pos (line-end-position line))
                ;; this insertion is needed to make the paste work
@@ -504,22 +518,25 @@
                  (delete (line-start-position (+ line diff-lines))))
                (end-edit-sequence)]
               [else
-               (define old-pos (get-start-position))
+               (define old-pos vim-position)
                (define line (position-line old-pos))
                (define end (line-end-position line))
-               (set-position (add1 old-pos))
+               (set-vim-position! (add1 old-pos))
                (cond [;; caret is as far right as it can go in command
-                      (= (sub1 end) (get-start-position))
+                      (= (sub1 end) vim-position)
                       (begin-edit-sequence)
                       (insert " " end) ; dummy character, gets deleted
-                      (set-position (add1 old-pos))
-                      (paste)
+                      (set-vim-position! (add1 old-pos))
+                      (paste 0 vim-position)
                       (delete (line-end-position line))
                       (adjust-caret-eol)
                       (end-edit-sequence)]
-                     [(paste)
+                     [else
+                      (define old-last (last-position))
+                      (paste 0 vim-position)
+                      (define new-last (last-position))
                       ;; vim stays at the end of the paste, not right after
-                      (set-position (sub1 (get-start-position)))])]))
+                      (set-vim-position! (+ vim-position (- new-last old-last 1)))])]))
 
       ;; handle mark setting and navigation
       (define/private (handle-mark command)
@@ -529,11 +546,11 @@
            (define mark-pos (lookup-mark mark))
            (when mark-pos
              (define mark-line (position-line mark-pos))
-             (set-position (line-start-position mark-line)))]
+             (set-vim-position! (line-start-position mark-line)))]
           ['goto-mark-char
            (define mark-pos (lookup-mark mark))
            (when mark-pos
-             (set-position mark-pos))]
+             (set-vim-position! mark-pos))]
           ['save-mark (set-mark mark)]))
 
       ;; Look up a mark and return the mapped position. If the
@@ -545,37 +562,31 @@
 
       ;; Set a mark for the current position
       (define/private (set-mark char)
-        (define start-box (box 0))
-        (get-position start-box)
         (vector-set! local-marks
                      (- (char->integer char)
                         (char->integer #\a))
-                     (unbox start-box)))
+                     vim-position))
 
       (define/private (do-line f)
-        (let ([b (box 0)])
-          (if (= (get-end-position) (last-position))
-              (set! paste-type 'line-end)
-              (set! paste-type 'line))
-          (get-position b)
-          (define line (position-line (unbox b)))
-          (define start (line-start-position line))
-          (f (if (and (= line (last-line))
-                      (not (zero? line)))
-                 (sub1 start)
-                 start)
-             (add1 (line-end-position line)))))
+        (if (= vim-position (last-position))
+            (set! paste-type 'line-end)
+            (set! paste-type 'line))
+        (define line (position-line vim-position))
+        (define start (line-start-position line))
+        (f (if (and (= line (last-line))
+                    (not (zero? line)))
+               (sub1 start)
+               start)
+           (add1 (line-end-position line))))
 
       (define (do-delete-line)
         (do-line (λ (s e)
                    (send this kill 0 s e)
-                   (send this move-position 'left #f 'line))))
+                   (cmd-move-position 'left #f 'line))))
 
       (define (do-a-word f)
-        (let ([start (box 0)]
-              [end (box 0)])
-          (get-position start)
-          (get-position end)
+        (let ([start (box vim-position)]
+              [end (box vim-position)])
           (find-wordbreak start end 'selection)
           (define start-pos (unbox start))
           (define end-pos (unbox end))
@@ -599,9 +610,8 @@
       ;; (position position -> any) -> any
       ;; handle a word forward motion, using f as the action
       (define (do-word-forward f)
-        (define-values (start end) (values (box 0) (box 0)))
-        (get-position start)
-        (get-position end)
+        (define-values (start end)
+          (values (box vim-position) (box vim-position)))
         (find-wordbreak start end 'selection)
         (f (get-start-position)
            ;; vim includes whitespace up to next word
@@ -613,29 +623,23 @@
         (and (not (at-start-of-line?))
              (let ()
                (begin-edit-sequence)
-               (define orig (get-start-position))
-               (move-position 'left #f 'word)
-               (define word-start (get-start-position))
-               (set-position orig)
+               (define orig vim-position)
+               (cmd-move-position 'left #f 'word)
+               (define word-start vim-position)
+               (set-vim-position! orig)
                (f word-start orig)
                (end-edit-sequence))))
 
       (define (do-character f [dir 'forward])
-        (let ([start (box 0)]
-              [end (box 0)])
-          (get-position start)
-          (get-position end)
-          (cond [(eq? dir 'forward)
-                 (f (unbox start) (+ 1 (unbox end)))]
-                [(and (eq? dir 'backward)
-                      (not (at-start-of-line?)))
-                 (f (- (unbox start) 1) (unbox end))]
-                [else #f])))
+        (cond [(eq? dir 'forward)
+               (f vim-position (+ 1 vim-position))]
+              [(and (eq? dir 'backward)
+                    (not (at-start-of-line?)))
+               (f (- vim-position 1) vim-position)]
+              [else #f]))
 
       (define/private (do-one-line f [dir 'up])
-        (define-values (start end)
-          (values (get-start-position) (get-end-position)))
-        (define cur-line (position-line start))
+        (define cur-line (position-line vim-position))
         (cond [(and (eq? dir 'up)
                     (>= (sub1 cur-line) 0))
                (f (line-start-position (sub1 cur-line))
@@ -658,8 +662,100 @@
 
       (define/private (do-delete-insertion-point)
         (unless (empty-line?)
-          (kill 0 (get-start-position) (add1 (get-start-position)))
+          (kill 0 vim-position (add1 vim-position))
           (adjust-caret-eol)))
+
+      ;; like the move-position method in texts, but this method adjusts both
+      ;; the vim position and text position for command/visual mode
+      (define/private (cmd-move-position code [extend? #f] [kind 'simple])
+        (begin-edit-sequence)
+        (define-values (text-start text-end)
+          (values (get-start-position) (get-end-position)))
+
+        ;; since we use text's move-position to figure out how to move, first line
+        ;; up the vim/text positions and then do a move
+        (set-position vim-position 'same)
+        (move-position code extend? kind)
+        (set-vim-position! (get-start-position))
+
+        ;; Don't allow navigation to the "end of line" position
+        ;; since this would go "off the end" in vim
+        (when (eq? mode 'command)
+          (when (and (not (empty-line?))
+                     (at-end-of-line?))
+            (set-vim-position! (sub1 vim-position))))
+
+        ;; now handle how we reset the text position
+        (cond [(and (= text-start text-end)
+                    (not (eq? mode 'visual))
+                    (not (eq? mode 'visual-line)))
+               ;; if the selection was a single position to begin with, we update
+               ;; position based on the current character
+               (define char (get-character vim-position))
+               (when (equal? char #\))
+                 (move-position 'right))]
+              [else
+               (set-position text-start text-end)])
+
+        (do-caret-update)
+        (end-edit-sequence))
+
+      ;; move the position in visual mode, making sure to move the cursor
+      ;; independently of the visual selection
+      (define/private (vis-move-position code [kind 'simple])
+        (begin-edit-sequence)
+
+        ;; the visual selection that we currently have
+        (define-values (text-start text-end)
+          (values (get-start-position) (get-end-position)))
+
+        ;; first move cursor, this shouldn't clobber the text positions
+        (cmd-move-position code #f kind)
+
+        (match* (mode code)
+          [('visual (or 'left 'right 'down 'up))
+           (move-position code #t kind)]
+          [('visual-line (or 'left 'right))
+           (void)]
+          [('visual-line 'down)
+           (match visual-line-mode-direction
+             [(or 'same 'down)
+              (set-position (get-start-position)
+                            (line-end-position (position-line vim-position)))
+              (set! visual-line-mode-direction 'down)]
+             ['up
+              (set-position (line-start-position (position-line vim-position))
+                            (get-end-position))
+              (when (= (position-line (get-start-position))
+                       (position-line (get-end-position)))
+                (set! visual-line-mode-direction 'same))])]
+          [('visual-line 'up)
+           (match visual-line-mode-direction
+             [(or 'same 'up)
+              (set-position (line-start-position (position-line vim-position))
+                            (get-end-position))
+              (set! visual-line-mode-direction 'up)]
+             ['down
+              (set-position (get-start-position)
+                            (line-end-position (position-line vim-position)))
+              (when (= (position-line (get-start-position))
+                       (position-line (get-end-position)))
+                (set! visual-line-mode-direction 'same))])]
+          [('visual-line 'prior)
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'up)
+             (move-position 'right #f 'line)
+             (move-position 'left #t 'line))
+           (move-position 'up #t 'page)]
+          [('visual-line 'next)
+           (when (equal? visual-line-mode-direction 'same)
+             (set! visual-line-mode-direction 'down)
+             (move-position 'left #f 'line)
+             (move-position 'right #t 'line))
+           (move-position 'down #t 'page)])
+
+        (do-caret-update)
+        (end-edit-sequence))
 
       ;; ReplaceCommand -> Void
       ;; FIXME: make this work correctly for visual mode, etc.
@@ -671,81 +767,36 @@
         (do-delete-insertion-point)
         (insert char pos)
         (if eol?
-            (move-position 'right)
+            (cmd-move-position 'right)
             ;; compensate for insertion moving right
-            (move-position 'left))
+            (cmd-move-position 'left))
         (end-edit-sequence))
 
       ;; (is-a?/c key-event%) -> void?
       (define/private (do-visual event)
-        (match (send event get-key-code)
-          [#\b (move-position 'left #t 'word)]
-          [#\w (move-position 'right #t 'word)]
-          [#\$ (move-position 'right #t 'line)]
-          [#\^ (move-position 'left #t 'line)]
-          [(or #\h 'left) (move-position 'left #t)]
-          [(or #\j 'down) (move-position 'down #t)]
-          [(or #\k 'up) (move-position 'up #t)]
-          [(or #\l 'right) (move-position 'right #t)]
-          [_ (do-visual-line event)]))
-
-      (define/private (fill-line s e)
-        (define-values (s* e*) (values (get-start-position) (get-end-position)))
-        (cond [(= (position-line s*) (position-line e*))
-               (set! visual-line-mode-direction 'same)
-               (move-position 'left #f 'line)
-               (move-position 'right #t 'line)]
-              [(equal? visual-line-mode-direction 'up)
-               (move-position 'left #t 'line)]
-              [(equal? visual-line-mode-direction 'down)
-               (move-position 'right #t 'line)]))
-
-      ;; (is-a?/c key-event%) -> void?
-      (define/private (do-visual-line event)
-        (define-values (s e) (values (get-start-position) (get-end-position)))
         (cond
          [(check-escape event) (set-mode! 'command)]
          [else
           (match (send event get-key-code)
+            ;; visual movement
+            [#\b (vis-move-position 'left 'word)]
+            [#\w (vis-move-position 'right 'word)]
+            [#\$ (vis-move-position 'right 'line)]
+            [#\^ (vis-move-position 'left 'line)]
+            [(or #\h 'left)  (vis-move-position 'left)]
+            [(or #\j 'down)  (vis-move-position 'down)]
+            [(or #\k 'up)    (vis-move-position 'up)]
+            [(or #\l 'right) (vis-move-position 'right)]
+
             ;; copy & paste
             [#\d (visual-kill)]
             [#\x (visual-kill)]
             [#\y (visual-copy)]
             [#\p (begin (paste)
                         (set-mode! 'command))]
-            ;; visual movement
-            [(or #\j 'down)
-             (when (equal? visual-line-mode-direction 'same)
-               (set! visual-line-mode-direction 'down)
-               (move-position 'left #f 'line)
-               (move-position 'right #t 'line))
-             (move-position 'down #t)
-             (fill-line s e)]
-            [(or #\k 'up)
-             (when (equal? visual-line-mode-direction 'same)
-               (set! visual-line-mode-direction 'up)
-               (move-position 'right #f 'line)
-               (move-position 'left #t 'line))
-             (move-position 'up #t)
-             (fill-line s e)]
-            ['prior
-             (when (equal? visual-line-mode-direction 'same)
-               (set! visual-line-mode-direction 'up)
-               (move-position 'right #f 'line)
-               (move-position 'left #t 'line))
-             (move-position 'up #t 'page)
-             (fill-line s e)]
-            ['next
-             (when (equal? visual-line-mode-direction 'same)
-               (set! visual-line-mode-direction 'down)
-               (move-position 'left #f 'line)
-               (move-position 'right #t 'line))
-             (move-position 'down #t 'page)
-             (fill-line s e)]
-            ;; re-indent on tab
-            [#\tab (super on-local-char event)]
-            [_   (void)])]))
 
+            [#\tab (super on-local-char event)]
+            [_ (void)])]))
 
       ;; searching
       (inherit set-searching-state
@@ -781,6 +832,7 @@
           (define-values (_ total) (get-search-hit-count))
           (cond [(and continuing? (> total 0))
                  (begin-edit-sequence)
+                 (set-position vim-position)
                  (move-position 'right)
                  (sleep/yield 0.1) ; timeout determined experimentally
                  (define-values (before _) (get-search-hit-count))
@@ -798,17 +850,18 @@
                           (if hit
                               (set-position hit)
                               (loop (begin (yield) (get-replace-search-hit)))))])
+                 (set-vim-position! (get-start-position))
                  (end-edit-sequence)]
                 ;; start a fresh search
                 [else
                  (set-searching-state search-string #f #t #f)
                  (finish-pending-search-work)
                  (when (get-replace-search-hit)
-                   (set-position (get-replace-search-hit)))])))
+                   (set-vim-position! (get-replace-search-hit)))])))
 
       ;; [position] -> void
       ;; execute a search going backwards from start-pos
-      (define/private (do-previous-search [start-pos (get-start-position)])
+      (define/private (do-previous-search [start-pos vim-position])
         (when search-string
           (define bubbles (get-search-bubbles))
           ;; ASSUMPTION: bubbles are ordered by position
@@ -818,7 +871,7 @@
               bubble))
           (cond [(null? bubbles) (void)]
                 [matching-bubble
-                 (set-position (caar matching-bubble))]
+                 (set-vim-position! (caar matching-bubble))]
                 [;; there are other search hits but there wasn't
                  ;; a match, therefore we have to loop from the end
                  else
@@ -849,7 +902,7 @@
       (define/private (run-ex-command)
         (match (list->string (gvector->list ex-queue))
           [(app string->number (? exact-positive-integer? num))
-           (set-position (line-start-position (sub1 num)))]
+           (set-vim-position! (line-start-position (sub1 num)))]
           ["q" (send parent-frame close-current-tab)]
           ["w" (send this save-file)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
@@ -866,7 +919,7 @@
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
       (define/private (delete-next-newline-and-whitespace)
-        (define newline-pos (find-newline))
+        (define newline-pos (find-newline 'forward vim-position))
         (when newline-pos
           (begin-edit-sequence)
           (delete newline-pos)
@@ -876,24 +929,22 @@
               (delete newline-pos)
               (loop (get-character newline-pos))))
           (insert #\space (sub1 newline-pos))
-          (set-position newline-pos)
+          (set-vim-position! (sub1 newline-pos))
           (end-edit-sequence)))
 
       (define/private (skip-whitespace-forward [pos #f])
-        (skip-whitespace (or pos (get-start-position))
+        (skip-whitespace (or pos vim-position)
                          'forward
                          #f))
 
       (define/private (skip-whitespace-backward [pos #f])
-        (skip-whitespace (or pos (get-start-position))
+        (skip-whitespace (or pos vim-position)
                          'backward
                          #f))
 
       ;; implements the behavior of "%" and friends in vim
       (define/private (do-matching-paren action)
-        (define pos-box (box 0))
-        (get-position pos-box)
-        (define pos (unbox pos-box))
+        (define pos vim-position)
         (define char (get-character pos))
         (match char
           [(or #\) #\] #\})
@@ -945,10 +996,9 @@
 
       ;; clear selection and end visual mode
       (define/private (visual-cleanup)
-        (let ([b (box 0)])
-          (get-position b)
-          (set-position (unbox b) 'same)
-          (set-mode! 'command)))
+        (set-vim-position! (get-start-position))
+        (set-position vim-position)
+        (set-mode! 'command))
 
       ;; insert line after the line the cursor is currently on
       (define/private (insert-line-after)
@@ -978,24 +1028,18 @@
       ;; determine if the current position is at the end of the line
       ;; possibly counting an offset from the actual current position
       (define/private (at-end-of-line? [offset 0])
-        (define-values (start end) (values (box #f) (box #f)))
-        (get-position start end)
-        (define cur-line (position-line (unbox start)))
+        (define cur-line (position-line vim-position))
         (= (line-end-position cur-line)
-           (+ offset (unbox start))))
+           (+ offset vim-position)))
 
       ;; determine if the current position is at the start of the line
       (define/private (at-start-of-line?)
-        (define-values (start end) (values (box #f) (box #f)))
-        (get-position start end)
-        (define cur-line (position-line (unbox start)))
-        (= (line-start-position cur-line) (unbox start)))
+        (define cur-line (position-line vim-position))
+        (= (line-start-position cur-line) vim-position))
 
       ;; determine if the current line is empty
       (define/private (empty-line?)
-        (define-values (start end) (values (box #f) (box #f)))
-        (get-position start end)
-        (define cur-line (position-line (unbox start)))
+        (define cur-line (position-line vim-position))
         (= (line-end-position cur-line)
            (line-start-position cur-line)))
 
@@ -1004,7 +1048,7 @@
       (define/private (adjust-caret-eol)
         (when (and (not (empty-line?))
                    (at-end-of-line?))
-          (move-position 'left)))
+          (cmd-move-position 'left)))
 
       (super-new)
       (do-caret-update))))
