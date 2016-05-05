@@ -694,7 +694,9 @@
                ;; if the selection was a single position to begin with, we update
                ;; position based on the current character
                (define char (get-character vim-position))
-               (when (equal? char #\))
+               (when (or (equal? char #\))
+                         (equal? char #\])
+                         (equal? char #\}))
                  (move-position 'right))]
               [else
                (set-position text-start text-end)])
