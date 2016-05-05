@@ -231,6 +231,8 @@
                     (not (at-end-of-line?))
                     (not (eq? mode 'insert)))
                (highlight-range vim-position (add1 vim-position) cursor-color
+                                #f
+                                'high
                                 #:key 'drracket-vim-highlight)]
               [else
                (invalidate-bitmap-cache)])
