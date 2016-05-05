@@ -708,17 +708,36 @@
       ;; independently of the visual selection
       (define/private (vis-move-position code [kind 'simple])
         (begin-edit-sequence)
-
-        ;; the visual selection that we currently have
-        (define-values (text-start text-end)
-          (values (get-start-position) (get-end-position)))
+        (define old-position vim-position)
 
         ;; first move cursor, this shouldn't clobber the text positions
         (cmd-move-position code #f kind)
 
         (match* (mode code)
-          [('visual (or 'left 'right 'down 'up))
-           (move-position code #t kind)]
+          [('visual 'down)
+           (cond [(> vim-position (get-end-position))
+                  (set-position (get-start-position) (add1 vim-position))]
+                 [(> vim-position (get-start-position))
+                  (set-position vim-position (get-end-position))])]
+          [('visual 'up)
+           (cond [(< vim-position (get-start-position))
+                  (set-position vim-position (get-end-position))]
+                 [(< vim-position (get-end-position))
+                  (set-position (get-start-position) (add1 vim-position))])]
+          [('visual 'left)
+           (cond [(or (= (get-start-position) old-position)
+                      (= (get-start-position) (sub1 (get-end-position))))
+                  (move-position 'left #t)]
+                 [else
+                  (set-position (get-start-position)
+                                (sub1 (get-end-position)))])]
+          [('visual 'right)
+           (cond [(or (>= vim-position (get-end-position))
+                      (= (get-start-position) (sub1 (get-end-position))))
+                  (move-position 'right #t)]
+                 [else
+                  (set-position (add1 (get-start-position))
+                                (get-end-position))])]
           [('visual-line (or 'left 'right))
            (void)]
           [('visual-line 'down)

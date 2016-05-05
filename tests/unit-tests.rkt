@@ -614,6 +614,33 @@
      ghijkl
      mnopqr})
 
+;; issue #97, correct visual movement
+(check-vim
+ @~a{#lang racket}
+ '(#\v #\l #\l #\h #\y #\p)
+ @~a{##llang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\$ #\v #\h #\h #\l #\y #\p)
+ @~a{#lang rackeett})
+
+(check-vim
+ @~a{racketracket
+     racketracket
+     racketracket}
+ '(#\l #\l #\v #\j #\x)
+ @~a{raketracket
+     racketracket})
+
+(check-vim
+ @~a{racketracket
+     racketracket
+     racketracket}
+ '(#\l #\l #\j #\v #\k #\x)
+ @~a{raketracket
+     racketracket})
+
 ;; issue #43
 (check-vim
  @~a{      abcdef}
