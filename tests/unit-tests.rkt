@@ -651,6 +651,12 @@
  @~a{abc
      abc})
 
+;; issue #57
+(check-vim
+ "abc \nabc"
+ '(#\J #\x)
+ @~a{abcabc})
+
 ;; Check 'o', issue #47
 (check-vim
  @~a{a

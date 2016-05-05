@@ -437,7 +437,7 @@
           ['end-of-file   (cmd-move-position 'end #f)]
 
           ;; editing
-          ['join-line        (delete-next-newline-and-whitespace)]
+          ['join-line        (do-join-line)]
           ['delete-at-cursor (do-delete-insertion-point)]
 
           ;; FIXME: in vim this can call out to an external program, but
@@ -920,7 +920,7 @@
 
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
-      (define/private (delete-next-newline-and-whitespace)
+      (define/private (do-join-line)
         (define newline-pos (find-newline 'forward vim-position))
         (when newline-pos
           (begin-edit-sequence)
@@ -930,8 +930,12 @@
                        (not (eq? #\newline char)))
               (delete newline-pos)
               (loop (get-character newline-pos))))
-          (insert #\space (sub1 newline-pos))
-          (set-vim-position! (sub1 newline-pos))
+          (cond [(and (> newline-pos 1)
+                      (not (char-whitespace? (get-character (- newline-pos 2)))))
+                 (insert #\space (sub1 newline-pos))
+                 (set-vim-position! (sub1 newline-pos))]
+                [(> newline-pos 1)
+                 (set-vim-position! (- newline-pos 2))])
           (end-edit-sequence)))
 
       (define/private (skip-whitespace-forward [pos #f])
