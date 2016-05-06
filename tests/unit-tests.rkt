@@ -230,6 +230,12 @@
  '(#\$ #\r #\a #\x)
  @~a{#lang racke})
 
+;; issue #109, replace and cursor movement
+(check-vim
+ @~a{#lang racket}
+ '(#\l #\r #\a #\x)
+ @~a{#ang racket})
+
 ;;; change
 (check-vim
  @~a{#lang racket}

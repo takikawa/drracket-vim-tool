@@ -881,15 +881,13 @@
       ;; FIXME: make this work correctly for visual mode, etc.
       (define/private (handle-replace command)
         (match-define (replace-command char) command)
-        (define pos (get-start-position))
+        (define pos vim-position)
         (define eol? (at-end-of-line? 1))
         (begin-edit-sequence)
         (do-delete-insertion-point)
         (insert char pos)
-        (if eol?
-            (cmd-move-position 'right)
-            ;; compensate for insertion moving right
-            (cmd-move-position 'left))
+        (when eol?
+          (cmd-move-position 'right))
         (end-edit-sequence))
 
       ;; (is-a?/c key-event%) -> void?
