@@ -470,6 +470,7 @@
           ;; editing
           ['join-line        (do-join-line)]
           ['delete-at-cursor (do-delete-insertion-point)]
+          ['toggle-case      (do-toggle-case)]
 
           ;; FIXME: in vim this can call out to an external program, but
           ;;        for now it only does the default behavior of indenting
@@ -1025,6 +1026,17 @@
         (skip-whitespace (or pos vim-position)
                          'backward
                          #f))
+
+      ;; toggle case of current character, then move
+      (define/private (do-toggle-case)
+        (define ch (get-character vim-position))
+        (define new-ch
+          (if (char-upper-case? ch)
+              (char-downcase ch)
+              (char-upcase ch)))
+        (delete (add1 vim-position))
+        (insert new-ch vim-position)
+        (cmd-move-position 'right))
 
       ;; implements the behavior of "%" and friends in vim
       (define/private (do-matching-paren action)

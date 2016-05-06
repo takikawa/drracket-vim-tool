@@ -827,4 +827,15 @@
   '(#\d #\a #\w #\.)
   @~a{})
 
+;; Issue #88, "~"
+(check-vim
+  @~a{fOo bar}
+  '(#\~ #\~ #\~)
+  @~a{FoO bar})
+
+(check-vim
+  @~a{foo}
+  '(#\~ #\~ #\~ #\~)
+  @~a{FOo})
+
 (exit)
