@@ -104,65 +104,6 @@
       ;; track last command for repeat command
       (define last-command #f)
 
-      ;; helpers for searching
-      ;; char? -> void?
-      (define/private (enqueue-char! char)
-        (enqueue-front! search-queue char)
-        (update-mode!))
-
-      ;; -> void?
-      (define/private (dequeue-char!)
-        (dequeue! search-queue)
-        (update-mode!))
-
-      ;; -> string?
-      (define/private (search-queue->string)
-        (list->string (reverse (queue->list search-queue))))
-
-      ;; called to update the mode and do any transition work between modes
-      (define/private (set-mode! new-mode)
-        (define old-mode mode)
-        (set! mode new-mode)
-
-        ;; only show caret in insert mode
-        (cond [(eq? new-mode 'insert)
-               (hide-caret #f)]
-              [else (hide-caret #t)])
-
-        (when (eq? new-mode 'visual-line) 
-          (set! visual-line-mode-direction 'same)
-          (set-position vim-position)
-          (move-position 'left #f 'line)
-          (move-position 'right #t 'line))
-        (when (eq? new-mode 'visual)
-          ;; extend selection when entering visual mode to avoid having
-          ;; nothing selected initially
-          (set-position vim-position)
-          (move-position 'right #t))
-
-        (when (eq? new-mode 'search)
-          (set! search-queue (make-queue)))
-        (when (and (eq? new-mode 'command)
-                   (eq? old-mode 'insert))
-          (set-vim-position! (get-start-position))
-          (unless (at-start-of-line?)
-            (cmd-move-position 'left)))
-        (update-mode!)
-        (do-caret-update)
-        (when (eq? new-mode 'insert)
-          (set-position vim-position)
-          (hide-caret #f)))
-
-      ;; called to set the vim position, needed to make sure GUI updates are done
-      ;; after a position is set (since `after-set-position` is not called for this)
-      (define (set-vim-position! pos)
-        (set! vim-position pos)
-        (do-caret-update))
-
-      ;; handle the GUI portion of setting the mode line
-      (define/private (update-mode!)
-        (send parent-frame set-vim-status-message (mode-string)))
-
       (define mode-padding 3)
 
       ;; continuation into key handling routine
@@ -358,6 +299,65 @@
 
                ;; from text:basic<%>
                highlight-range unhighlight-ranges/key)
+
+      ;; helpers for searching
+      ;; char? -> void?
+      (define/private (enqueue-char! char)
+        (enqueue-front! search-queue char)
+        (update-mode!))
+
+      ;; -> void?
+      (define/private (dequeue-char!)
+        (dequeue! search-queue)
+        (update-mode!))
+
+      ;; -> string?
+      (define/private (search-queue->string)
+        (list->string (reverse (queue->list search-queue))))
+
+      ;; called to update the mode and do any transition work between modes
+      (define/private (set-mode! new-mode)
+        (define old-mode mode)
+        (set! mode new-mode)
+
+        ;; only show caret in insert mode
+        (cond [(eq? new-mode 'insert)
+               (hide-caret #f)]
+              [else (hide-caret #t)])
+
+        (when (eq? new-mode 'visual-line)
+          (set! visual-line-mode-direction 'same)
+          (set-position vim-position)
+          (move-position 'left #f 'line)
+          (move-position 'right #t 'line))
+        (when (eq? new-mode 'visual)
+          ;; extend selection when entering visual mode to avoid having
+          ;; nothing selected initially
+          (set-position vim-position)
+          (move-position 'right #t))
+
+        (when (eq? new-mode 'search)
+          (set! search-queue (make-queue)))
+        (when (and (eq? new-mode 'command)
+                   (eq? old-mode 'insert))
+          (set-vim-position! (get-start-position))
+          (unless (at-start-of-line?)
+            (cmd-move-position 'left)))
+        (update-mode!)
+        (do-caret-update)
+        (when (eq? new-mode 'insert)
+          (set-position vim-position)
+          (hide-caret #f)))
+
+      ;; called to set the vim position, needed to make sure GUI updates are done
+      ;; after a position is set (since `after-set-position` is not called for this)
+      (define (set-vim-position! pos)
+        (set! vim-position pos)
+        (do-caret-update))
+
+      ;; handle the GUI portion of setting the mode line
+      (define/private (update-mode!)
+        (send parent-frame set-vim-status-message (mode-string)))
 
       ;; mode string for mode line
       ;; -> string?
