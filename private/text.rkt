@@ -388,9 +388,12 @@
                                   (handle-command (repeat-command-command command)))]
           [(? goto-command?)
            (match-define (goto-command line) command)
-           (if (eq? line 'last-line)
-               (set-vim-position! (line-start-position (last-line)))
-               (set-vim-position! (line-start-position (sub1 line))))]
+           (define pos
+             (if (eq? line 'last-line)
+                 (line-start-position (last-line))
+                 (line-start-position (sub1 line))))
+           (set-vim-position! pos)
+           (scroll-to-position pos)]
           [_ (handle-simple-command command)])
 
         (unless (eq? command 'single-repeat)
