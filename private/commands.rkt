@@ -164,6 +164,9 @@
     [#\N     'prev-search]
     [#\*     'search-cursor]
 
+    ;; other
+    [#\.     'single-repeat]
+
     [_ #f]))
 
 (define (parse-repeat digit next-key)

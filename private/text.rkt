@@ -101,6 +101,9 @@
 
       (define visual-line-mode-direction 'same)
 
+      ;; track last command for repeat command
+      (define last-command #f)
+
       ;; helpers for searching
       ;; char? -> void?
       (define/private (enqueue-char! char)
@@ -384,7 +387,10 @@
            (if (eq? line 'last-line)
                (set-vim-position! (line-start-position (last-line)))
                (set-vim-position! (line-start-position (sub1 line))))]
-          [_ (handle-simple-command command)]))
+          [_ (handle-simple-command command)])
+
+        (unless (eq? command 'single-repeat)
+          (set! last-command command)))
 
       ;; handle a command with no motion/repeat
       (define/private (handle-simple-command command)
@@ -494,6 +500,10 @@
            (move-position 'right)
            (do-next-search)
            (set-mode! 'command)]
+
+          ['single-repeat
+           (when last-command
+             (handle-command last-command))]
 
           [_   (void)]))
 

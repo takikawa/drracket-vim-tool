@@ -805,4 +805,10 @@
              (define + 5)
              +)))})
 
+;; Issue #93, "." command
+(check-vim
+  @~a{foo bar}
+  '(#\d #\a #\w #\.)
+  @~a{})
+
 (exit)
