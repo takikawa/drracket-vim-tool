@@ -209,25 +209,29 @@
       (define/override (on-local-event event)
         (super on-local-event event)
         (define type (send event get-event-type))
-        (when (or (eq? type 'left-down)
-                  ;; left click + drag
-                  (and (eq? type 'motion)
-                       (send event get-left-down)
-                       (not (send event get-middle-down))
-                       (not (send event get-right-down))))
-          (set! visual-line-mode-direction 'same)
-          ;; manually set up mode to avoid clobbering the position that the
-          ;; superclass mouse handler sets
-          (set! mode 'visual)
-          (hide-caret #t)
-          (update-mode!)
-          (define pos
-            (let ([x (box (send event get-x))]
-                  [y (box (send event get-y))])
-              (global-to-local x y)
-              (find-position (unbox x) (unbox y))))
-          (set-vim-position! pos)
-          (do-caret-update)))
+        (define pos
+          (let ([x (box (send event get-x))]
+                [y (box (send event get-y))])
+            (global-to-local x y)
+            (find-position (unbox x) (unbox y))))
+        ;; FIXME: in gvim a mouse drag in insert mode retains
+        ;;        insert mode while doing visual mode too
+        (cond [(eq? type 'left-down)
+               (set-vim-position! pos)
+               (set-position pos)
+               (do-caret-update)]
+              [;; left click + drag
+               (and (eq? type 'motion)
+                    (send event get-left-down)
+                    (not (send event get-middle-down))
+                    (not (send event get-right-down)))
+               (set! visual-line-mode-direction 'same)
+               ;; manually set up mode to avoid clobbering the position that the
+               ;; superclass mouse handler sets
+               (set! mode 'visual)
+               (hide-caret #t)
+               (update-mode!)
+               (do-caret-update)]))
 
       ;; some events are ignored because they're irrelevant for vim emulation,
       ;; such as key release events (FIXME: this may not be exhaustive)
