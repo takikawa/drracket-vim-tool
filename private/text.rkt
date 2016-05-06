@@ -754,6 +754,7 @@
         (when (eq? mode 'command)
           (when (and (not (empty-line?))
                      (at-end-of-line?))
+            (set-position (sub1 vim-position))
             (set-vim-position! (sub1 vim-position))))
 
         ;; now handle how we reset the text position
