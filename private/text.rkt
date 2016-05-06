@@ -217,6 +217,10 @@
         ;; FIXME: in gvim a mouse drag in insert mode retains
         ;;        insert mode while doing visual mode too
         (cond [(eq? type 'left-down)
+               ;; clicks in visual mode escape the mode
+               (when (or (eq? mode 'visual)
+                         (eq? mode 'visual-line))
+                 (set-mode! 'command))
                (set-vim-position! pos)
                (set-position pos)
                (do-caret-update)]
