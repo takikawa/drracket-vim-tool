@@ -2,6 +2,7 @@ DrRacket Vim Tool
 =================
 
 [![Build Status](https://travis-ci.org/takikawa/drracket-vim-tool.svg?branch=master)](https://travis-ci.org/takikawa/drracket-vim-tool)
+[![Coverage Status](https://codecov.io/github/takikawa/drracket-vim-tool/coverage.svg?branch=master)](https://codecov.io/github/takikawa/drracket-vim-tool?branch=master)
 
 This plugin adds vim-like editing to DrRacket.
 
