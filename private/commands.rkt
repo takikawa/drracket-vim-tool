@@ -162,6 +162,7 @@
     [#\/     'search]
     [#\n     'next-search]
     [#\N     'prev-search]
+    [#\*     'search-cursor]
 
     [_ #f]))
 

@@ -575,6 +575,13 @@
 
      est})
 
+(check-vim
+ @~a{foo bar
+     bar}
+ '(#\w #\* #\x)
+ @~a{foo bar
+     ar})
+
 ;;; Select / visual mode
 (check-vim
  @~a{#lang racket

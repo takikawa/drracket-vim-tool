@@ -340,7 +340,7 @@
                begin-edit-sequence end-edit-sequence
                get-character find-newline
                get-forward-sexp get-backward-sexp
-               tabify-selection
+               tabify-selection get-text
 
                ;; from color:text<%>
                skip-whitespace
@@ -483,6 +483,17 @@
           ['search      (set-mode! 'search)]
           ['next-search (do-next-search #t)]
           ['prev-search (do-previous-search)]
+          ['search-cursor
+           (define-values (start end)
+             (values (box vim-position) (box vim-position)))
+           (find-wordbreak start end 'selection)
+           (set! search-string
+                 (get-text (unbox start) (unbox end) #t))
+           ;; we want the next hit, so move past this word first
+           (move-position 'right #f 'word)
+           (move-position 'right)
+           (do-next-search)
+           (set-mode! 'command)]
 
           [_   (void)]))
 
