@@ -827,6 +827,12 @@
   '(#\d #\a #\w #\.)
   @~a{})
 
+;; Issue #108, "." on movement
+(check-vim
+  @~a{foo bar}
+  '(#\x #\l #\.)
+  @~a{o bar})
+
 ;; Issue #88, "~"
 (check-vim
   @~a{fOo bar}

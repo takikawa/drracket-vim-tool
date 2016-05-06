@@ -13,7 +13,8 @@
          (struct-out repeat-command)
          (struct-out repeat-motion)
          (struct-out replace-command)
-         (struct-out goto-command))
+         (struct-out goto-command)
+         movement-command?)
 
 ;; A Command is one of
 ;;   - Symbol
@@ -261,3 +262,16 @@
     [#\"     'double-quote]
     [(or #\space #\l) 'right]
     [_   #f]))
+
+;; check if the given command is a movement command
+(define (movement-command? command)
+  (or (goto-command? command)
+      (memq command
+            '(left down up right
+              next-page previous-page
+              next-word previous-word
+              continue
+              start-of-line end-of-line
+              start-of-line-content
+              match
+              start-of-file end-of-file))))

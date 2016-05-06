@@ -400,7 +400,8 @@
            (scroll-to-position pos)]
           [_ (handle-simple-command command)])
 
-        (unless (eq? command 'single-repeat)
+        (unless (or (eq? command 'single-repeat)
+                    (movement-command? command))
           (set! last-command command)))
 
       ;; handle a command with no motion/repeat
