@@ -460,6 +460,22 @@
  @~a{foo
      bfofofoar})
 
+;; Issue #91 (next two)
+(check-vim
+ @~a{foo
+     bar}
+ '(#\y #\a #\w #\j #\P)
+ @~a{foo
+     foobar})
+
+(check-vim
+ @~a{foo
+     bar}
+ '(#\y #\y #\j #\P)
+ @~a{foo
+     foo
+     bar})
+
 ;;; ex commands
 (check-vim
  @~a{#lang racket

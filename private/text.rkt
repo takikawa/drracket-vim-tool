@@ -478,12 +478,13 @@
            (tabify-selection start end)]
 
           ;; copy & paste & editing
-          ['delete-rest (delete-until-end)]
-          ['delete-line (do-delete-line)]
-          ['yank-line   (do-line (λ (s e) (send this copy #f 0 s e)))]
-          ['paste       (do-paste)]
-          ['undo        (undo)]
-          ['redo        (redo)]
+          ['delete-rest  (delete-until-end)]
+          ['delete-line  (do-delete-line)]
+          ['yank-line    (do-line (λ (s e) (send this copy #f 0 s e)))]
+          ['paste        (do-paste)]
+          ['paste-before (do-paste #f)]
+          ['undo         (undo)]
+          ['redo         (redo)]
 
           ;; search
           ['search      (set-mode! 'search)]
@@ -548,24 +549,27 @@
           (do-post)))
 
       ;; handle pasting, esp. visual-line type pasting
-      (define/private (do-paste)
+      (define/private (do-paste [after? #t])
         (cond [(or (eq? paste-type 'line)
                    (eq? paste-type 'line-end))
                (begin-edit-sequence)
                (define line (position-line vim-position))
-               (define num-lines (add1 (last-line)))
-               (define pos (line-end-position line))
-               ;; this insertion is needed to make the paste work
-               (insert "\n" pos)
-               (paste 0 (add1 pos))
-               ;; Remove the extra "\n" if we are not at the end. We
-               ;; retain it at the end because the last line is missing
-               ;; a newline character.
-               (unless (eq? paste-type 'line-end)
-                 (define diff-lines (- (add1 (last-line)) num-lines))
-                 (delete (line-start-position (+ line diff-lines))))
+               (cond [after?
+                      (define num-lines (add1 (last-line)))
+                      (define pos (line-end-position line))
+                      ;; this insertion is needed to make the paste work
+                      (insert "\n" pos)
+                      (paste 0 (add1 pos))
+                      ;; Remove the extra "\n" if we are not at the end. We
+                      ;; retain it at the end because the last line is missing
+                      ;; a newline character.
+                      (unless (eq? paste-type 'line-end)
+                        (define diff-lines (- (add1 (last-line)) num-lines))
+                        (delete (line-start-position (+ line diff-lines))))]
+                     [else
+                      (paste 0 (line-start-position (sub1 line)))])
                (end-edit-sequence)]
-              [else
+              [after?
                (define old-pos vim-position)
                (define line (position-line old-pos))
                (define end (line-end-position line))
@@ -584,7 +588,12 @@
                       (paste 0 vim-position)
                       (define new-last (last-position))
                       ;; vim stays at the end of the paste, not right after
-                      (set-vim-position! (+ vim-position (- new-last old-last 1)))])]))
+                      (set-vim-position! (+ vim-position (- new-last old-last 1)))])]
+              [else
+               (define old-last (last-position))
+               (paste 0 vim-position)
+               (define new-last (last-position))
+               (set-vim-position! (+ vim-position (- new-last old-last 1)))]))
 
       ;; handle mark setting and navigation
       (define/private (handle-mark command)

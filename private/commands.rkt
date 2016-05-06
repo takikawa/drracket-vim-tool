@@ -154,6 +154,7 @@
     ;; copy & paste & editing
     [#\D     'delete-rest]
     [#\p     'paste]
+    [#\P     'paste-before]
     [#\u     'undo]
     [#\r #:when (send key get-control-down)
      'redo]
