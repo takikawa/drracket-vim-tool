@@ -343,11 +343,12 @@
           (set-vim-position! (get-start-position))
           (unless (at-start-of-line?)
             (cmd-move-position 'left)))
-        (update-mode!)
-        (do-caret-update)
+
         (when (eq? new-mode 'insert)
-          (set-position vim-position)
-          (hide-caret #f)))
+          (set-position vim-position))
+
+        (update-mode!)
+        (do-caret-update))
 
       ;; called to set the vim position, needed to make sure GUI updates are done
       ;; after a position is set (since `after-set-position` is not called for this)
@@ -1159,5 +1160,6 @@
           (cmd-move-position 'left)))
 
       (super-new)
+      (hide-caret #t)
       (do-caret-update))))
 
