@@ -14,6 +14,7 @@ before_install:
 install:
 - curl -L -o master.zip https://github.com/takikawa/drracket-vim-tool/archive/master.zip
 - unzip master.zip
+- raco pkg install --deps search-auto cover-codecov
 - raco pkg install -n drracket-vim-tool drracket-vim-tool-master/
 
 script:
@@ -21,3 +22,6 @@ script:
 - echo "done"
 
 after_script:
+
+after_success:
+- raco cover -f codecov -d $TRAVIS_BUILD_DIR/coverage -b -p drracket-vim-tool
