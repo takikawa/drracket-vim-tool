@@ -86,6 +86,11 @@
       ;; This position is often the same as the underlying text position though.
       (define vim-position 0)
 
+      ;; This variable should be updated whenever the cursor moves.
+      ;; The cursor on up/down movements chooses the max of the text movement
+      ;; position and this variable.
+      (define current-column-position 0)
+
       ;; used to build up a search string
       (define search-queue (make-queue))
       ;; current search string (#f means none set)
@@ -354,6 +359,9 @@
       ;; after a position is set (since `after-set-position` is not called for this)
       (define (set-vim-position! pos)
         (set! vim-position pos)
+        (set! current-column-position
+              (- vim-position
+                 (line-start-position (position-line vim-position))))
         (do-caret-update))
 
       ;; handle the GUI portion of setting the mode line
@@ -742,6 +750,7 @@
         (begin-edit-sequence)
         (define-values (text-start text-end)
           (values (get-start-position) (get-end-position)))
+        (define old-column-position current-column-position)
 
         ;; since we use text's move-position to figure out how to move, first line
         ;; up the vim/text positions and then do a move
@@ -756,6 +765,24 @@
                      (at-end-of-line?))
             (set-position (sub1 vim-position))
             (set-vim-position! (sub1 vim-position))))
+
+        ;; implements vim's tracking of the column to move to
+        (when (or (eq? code 'up)
+                  (eq? code 'down))
+          (define target-pos
+            (+ (line-start-position (position-line vim-position))
+               old-column-position))
+          (define end-pos
+            (line-end-position (position-line vim-position)))
+          (define up/down-pos
+            (if (>= target-pos end-pos)
+                (max vim-position (sub1 end-pos))
+                target-pos))
+          (set-position up/down-pos)
+          (set-vim-position! up/down-pos)
+          ;; we don't want to update this here since the line may have
+          ;; ended before the recorded column
+          (set! current-column-position old-column-position))
 
         ;; now handle how we reset the text position
         (cond [(and (= text-start text-end)

@@ -183,6 +183,30 @@
  '(#\y #\% #\% #\p)
  @~a{(    )(    )a})
 
+;; issue #79
+(check-vim
+ @~a{fooooo
+     bar}
+ '(#\$ #\j #\k #\x)
+ @~a{foooo
+     bar})
+
+(check-vim
+ @~a{foooxo
+     bar}
+ '(#\$ #\h #\j #\k #\x)
+ @~a{foooo
+     bar})
+
+(check-vim
+ @~a{fooooo
+
+     bar}
+ '(#\$ #\h #\j #\j #\x)
+ @~a{fooooo
+
+     ba})
+
 ;;; replace
 
 (check-vim
