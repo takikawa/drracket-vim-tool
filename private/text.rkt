@@ -862,7 +862,8 @@
                get-search-hit-count
                get-replace-search-hit
                get-search-bubbles
-               finish-pending-search-work)
+               finish-pending-search-work
+               scroll-to-position)
 
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
@@ -916,7 +917,8 @@
                  (set-searching-state search-string #f #t #f)
                  (finish-pending-search-work)
                  (when (get-replace-search-hit)
-                   (set-vim-position! (get-replace-search-hit)))])))
+                   (set-vim-position! (get-replace-search-hit)))])
+          (scroll-to-position vim-position)))
 
       ;; [position] -> void
       ;; execute a search going backwards from start-pos
