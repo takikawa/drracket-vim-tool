@@ -298,6 +298,7 @@
                get-character find-newline
                get-forward-sexp get-backward-sexp
                tabify-selection get-text
+               scroll-to-position
 
                ;; from color:text<%>
                skip-whitespace
@@ -362,6 +363,7 @@
         (set! current-column-position
               (- vim-position
                  (line-start-position (position-line vim-position))))
+        (scroll-to-position pos)
         (do-caret-update))
 
       ;; handle the GUI portion of setting the mode line
@@ -405,8 +407,7 @@
              (if (eq? line 'last-line)
                  (line-start-position (last-line))
                  (line-start-position (sub1 line))))
-           (set-vim-position! pos)
-           (scroll-to-position pos)]
+           (set-vim-position! pos)]
           [_ (handle-simple-command command)])
 
         (unless (or (eq? command 'single-repeat)
@@ -921,8 +922,7 @@
                get-search-hit-count
                get-replace-search-hit
                get-search-bubbles
-               finish-pending-search-work
-               scroll-to-position)
+               finish-pending-search-work)
 
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
@@ -976,8 +976,7 @@
                  (set-searching-state search-string #f #t #f)
                  (finish-pending-search-work)
                  (when (get-replace-search-hit)
-                   (set-vim-position! (get-replace-search-hit)))])
-          (scroll-to-position vim-position)))
+                   (set-vim-position! (get-replace-search-hit)))])))
 
       ;; [position] -> void
       ;; execute a search going backwards from start-pos
