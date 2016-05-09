@@ -207,6 +207,12 @@
 
      ba})
 
+;; issue #113
+(check-vim
+  @~a{   foo}
+  '(#\$ #\^ #\x)
+  @~a{   oo})
+
 ;;; replace
 
 (check-vim

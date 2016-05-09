@@ -10,6 +10,7 @@
 ;;     on the command representation. (see methods that start with `handle-`)
 
 (require "commands.rkt"
+         "utils.rkt"
          data/gvector
          data/queue
          framework
@@ -479,8 +480,9 @@
                   (cmd-move-position 'right)])]
           ['start-of-line         (cmd-move-position 'left #f 'line)]
           ['end-of-line           (cmd-move-position 'right #f 'line)]
-          ;; FIXME: this is not quite right
-          ['start-of-line-content (cmd-move-position 'left #f 'line)]
+          ['start-of-line-content (as-edit-sequence
+                                    (cmd-move-position 'left #f 'line)
+                                    (set-vim-position! (skip-whitespace-forward)))]
           ['match (do-matching-paren
                     (λ (dir s e)
                       (match dir
