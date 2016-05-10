@@ -297,6 +297,10 @@
         (unhighlight-ranges/key 'drracket-vim-highlight)
         (hide-caret #f))
 
+      (define/public (on-initialization)
+        (hide-caret #t)
+        (do-caret-update))
+
       ;; ==== private functionality ====
       (inherit get-position set-position
                get-start-position get-end-position
@@ -1196,8 +1200,5 @@
                    (at-end-of-line?))
           (cmd-move-position 'left)))
 
-      (super-new)
-      (when (vim?)
-        (hide-caret #t)
-        (do-caret-update)))))
+      (super-new))))
 

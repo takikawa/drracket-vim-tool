@@ -22,7 +22,7 @@
     (define/private (toggle-vim!)
       (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
       (set! vim-emulation? (not vim-emulation?))
-      (when vim-emulation?
+      (when (not vim-emulation?)
         (send (get-definitions-text) turn-off-vim-effects!))
       ;; trigger redraws to get rid of vim effects
       (send (get-definitions-text) invalidate-bitmap-cache)
@@ -83,6 +83,7 @@
           ;; initialize editor state
           (set-field! parent-frame (get-defs) (get-frame))
           (set-field! parent-frame (get-ints) (get-frame))
+          (send (get-defs) on-initialization)
           (set! initialized? #t))))))
 
 (define (phase1) (void))
