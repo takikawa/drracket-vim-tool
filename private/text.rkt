@@ -368,12 +368,13 @@
 
       ;; called to set the vim position, needed to make sure GUI updates are done
       ;; after a position is set (since `after-set-position` is not called for this)
-      (define (set-vim-position! pos)
+      (define (set-vim-position! pos [scroll? #t])
         (set! vim-position pos)
         (set! current-column-position
               (- vim-position
                  (line-start-position (position-line vim-position))))
-        (scroll-to-position pos)
+        (when scroll?
+          (scroll-to-position pos))
         (do-caret-update))
 
       ;; handle the GUI portion of setting the mode line
@@ -768,7 +769,7 @@
         ;; up the vim/text positions and then do a move
         (set-position vim-position 'same)
         (move-position code extend? kind)
-        (set-vim-position! (get-start-position))
+        (set-vim-position! (get-start-position) (not (eq? kind 'page)))
 
         ;; Don't allow navigation to the "end of line" position
         ;; since this would go "off the end" in vim
@@ -779,8 +780,8 @@
             (set-vim-position! (sub1 vim-position))))
 
         ;; implements vim's tracking of the column to move to
-        (when (or (eq? code 'up)
-                  (eq? code 'down))
+        (when (and (or (eq? code 'up) (eq? code 'down))
+                   (eq? kind 'simple))
           (define target-pos
             (+ (line-start-position (position-line vim-position))
                old-column-position))
