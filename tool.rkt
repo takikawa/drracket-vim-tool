@@ -23,7 +23,8 @@
       (preferences:set 'drracket:vim-emulation? (not vim-emulation?))
       (set! vim-emulation? (not vim-emulation?))
       (when (not vim-emulation?)
-        (send (get-definitions-text) turn-off-vim-effects!))
+        (send (get-definitions-text) turn-off-vim-effects!)
+        (send (get-interactions-text) turn-off-vim-effects!))
       ;; trigger redraws to get rid of vim effects
       (send (get-definitions-text) invalidate-bitmap-cache)
       (send (get-interactions-text) invalidate-bitmap-cache))
