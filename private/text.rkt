@@ -506,9 +506,10 @@
           ['end-of-file   (cmd-move-position 'end #f)]
 
           ;; editing
-          ['join-line        (do-join-line)]
-          ['delete-at-cursor (do-delete-insertion-point)]
-          ['toggle-case      (do-toggle-case)]
+          ['join-line            (do-join-line)]
+          ['delete-at-cursor     (do-delete-insertion-point)]
+          ['delete-before-cursor (do-delete-before-insertion-point)]
+          ['toggle-case          (do-toggle-case)]
 
           ;; FIXME: in vim this can call out to an external program, but
           ;;        for now it only does the default behavior of indenting
@@ -760,6 +761,14 @@
         (unless (empty-line?)
           (kill 0 vim-position (add1 vim-position))
           (adjust-caret-eol)))
+
+      (define/private (do-delete-before-insertion-point)
+        (unless (or (empty-line?) (at-start-of-line?))
+          (as-edit-sequence
+            (define pos (sub1 vim-position))
+            (kill 0 pos (add1 pos))
+            (cmd-move-position 'left)
+            (adjust-caret-eol))))
 
       ;; like the move-position method in texts, but this method adjusts both
       ;; the vim position and text position for command/visual mode

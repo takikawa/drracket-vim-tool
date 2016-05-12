@@ -151,6 +151,7 @@
     ;; editing
     [#\J     'join-line]
     [#\x     'delete-at-cursor]
+    [#\X     'delete-before-cursor]
     [#\~     'toggle-case]
 
     ;; copy & paste & editing

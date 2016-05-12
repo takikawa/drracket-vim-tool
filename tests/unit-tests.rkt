@@ -213,6 +213,17 @@
   '(#\$ #\^ #\x)
   @~a{   oo})
 
+;; issue #110, X
+(check-vim
+ @~a{#lang racket}
+ '(#\X #\X #\X)
+ @~a{#lang racket})
+
+(check-vim
+ @~a{#lang racket}
+ '(#\l #\l #\l #\X #\X #\X)
+ @~a{ng racket})
+
 ;;; replace
 
 (check-vim
