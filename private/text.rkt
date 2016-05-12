@@ -939,6 +939,14 @@
             [#\p (begin (paste)
                         (set-mode! 'command))]
 
+            ;; toggling visual modes
+            [#\v (if (eq? mode 'visual)
+                     (set-mode! 'command)
+                     (set-mode! 'visual))]
+            [#\V (if (eq? mode 'visual-line)
+                     (set-mode! 'command)
+                     (set-mode! 'visual-line))]
+
             [#\tab (super on-local-char event)]
             [_ (void)])]))
 

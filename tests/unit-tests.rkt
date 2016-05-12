@@ -711,6 +711,12 @@
  @~a{raketracket
      racketracket})
 
+;; issue #81
+(check-vim
+ @~a{#lang racket}
+ '(#\V #\V #\x)
+ @~a{lang racket})
+
 ;; issue #43
 (check-vim
  @~a{      abcdef}
