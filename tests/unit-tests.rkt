@@ -897,4 +897,25 @@
   '(#\~ #\~ #\~ #\~)
   @~a{FOo})
 
+;; Issue #123, block motions
+(check-vim
+  @~a{(a [b c] d) foo bar}
+  '(#\l #\d #\i #\b)
+  @~a{() foo bar})
+
+(check-vim
+  @~a{(a [b c] d) foo bar}
+  '(#\l #\d #\i #\))
+  @~a{() foo bar})
+
+(check-vim
+  @~a{(a {b c} d) foo bar}
+  '(#\l #\d #\a #\b)
+  @~a{ foo bar})
+
+(check-vim
+  @~a{(a {b c} d) foo bar}
+  '(#\l #\d #\a #\()
+  @~a{ foo bar})
+
 (exit)

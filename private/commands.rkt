@@ -253,7 +253,11 @@
     [#\a (match (send (next-key) get-key-code)
            [#\w 'a-word]
            [#\p 'a-paragraph]
+           [(or #\b #\( #\)) 'a-block]
            [_    #f])]
+    [#\i (match (send (next-key) get-key-code)
+           [(or #\b #\( #\)) 'inner-block]
+           [_ #f])]
     [#\h     'left]
     [#\j     'down]
     [#\k     'up]

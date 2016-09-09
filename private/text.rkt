@@ -579,8 +579,11 @@
             ['a-word (do-a-word do-range)]
             ['word-forward (do-word-forward do-range)]
             ['word-backward (do-word-backward do-range)]
+            ;; FIXME: this should be generalized to non-paren matches
             ['match (do-matching-paren
                       (λ (_ s e) (and s e (do-range s e))))]
+            ['a-block (do-block do-range 'paren 'whole)]
+            ['inner-block (do-block do-range 'paren 'inner)]
             ['left  (do-character do-range 'backward)]
             ['down  (do-one-line do-range 'down)]
             ['up    (do-one-line do-range 'up)]
@@ -1123,6 +1126,25 @@
            (when maybe-fwd
              (action 'forward pos maybe-fwd))]
           [_ (void)]))
+
+      ;; for handling block motions
+      (define/private (do-block action block-kind op-kind)
+        (define-values (start end)
+          (match block-kind
+            ['paren   (values "(" ")")]
+            ['bracket (values "[" "]")]
+            ['brace   (values "{" "}")]
+            ['angle   (values "<" ">")]))
+        (define start-pos
+          (send this find-string start
+                'backward (add1 vim-position) 0))
+        (define end-pos
+          (send this find-string end
+                'forward vim-position))
+        (when (and start-pos end-pos)
+          (match op-kind
+            ['whole (action (sub1 start-pos) (add1 end-pos))]
+            ['inner (action start-pos end-pos)])))
 
       ;; -> void?
       (define/private (delete-until-end)
