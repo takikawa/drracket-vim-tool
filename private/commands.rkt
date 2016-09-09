@@ -14,6 +14,7 @@
          (struct-out repeat-motion)
          (struct-out replace-command)
          (struct-out goto-command)
+         (struct-out passthrough-command)
          movement-command?)
 
 ;; A Command is one of
@@ -23,11 +24,13 @@
 ;;   - (mark-command Mark-Kind Char)
 ;;   - (replace-command Char)
 ;;   - (goto-command (U 'line Integer))
+;;   - (passthrough-command Key-Event%)
 (struct repeat-command (repeat command))
 (struct motion-command (operator motion))
 (struct mark-command (kind mark))
 (struct replace-command (char))
 (struct goto-command (line))
+(struct passthrough-command (event))
 
 ;; A Repeat is an integer
 ;; An Operator (for a motion command) is one of
@@ -127,6 +130,24 @@
     [#\v 'visual]
     [#\V 'visual-line]
     [#\: 'ex]
+
+    ;; these aren't vim commands, but since vim doesn't
+    ;; appear to treat them specially, just let drracket handle
+    ;; them normally
+    ;;
+    ;; FIXME: reduce code duplication
+    ['up #:when (or (send key get-alt-down)
+                    (send key get-meta-down))
+     (passthrough-command key)]
+    ['down #:when (or (send key get-alt-down)
+                      (send key get-meta-down))
+     (passthrough-command key)]
+    ['right #:when (or (send key get-alt-down)
+                       (send key get-meta-down))
+     (passthrough-command key)]
+    ['left #:when (or (send key get-alt-down)
+                      (send key get-meta-down))
+     (passthrough-command key)]
 
     ;; movement
     [(or #\h 'left)  'left]

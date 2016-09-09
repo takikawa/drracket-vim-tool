@@ -423,6 +423,9 @@
                  (line-start-position (last-line))
                  (line-start-position (sub1 line))))
            (set-vim-position! pos)]
+          [(? passthrough-command?)
+           ;; let DrRacket's standard handling deal with this
+           (super on-local-char (passthrough-command-event command))]
           [_ (handle-simple-command command)])
 
         (unless (or (eq? command 'single-repeat)
