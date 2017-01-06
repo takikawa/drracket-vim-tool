@@ -298,8 +298,10 @@
         (hide-caret #f))
 
       (define/public (on-initialization)
-        (hide-caret #t)
-        (do-caret-update))
+        ;; only run init code if vim mode is on
+        (when (vim?)
+          (hide-caret #t)
+          (do-caret-update)))
 
       ;; ==== private functionality ====
       (inherit get-position set-position
