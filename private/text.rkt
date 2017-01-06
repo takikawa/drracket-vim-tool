@@ -964,21 +964,26 @@
       ;; handle search mode key events
       (define/private (do-search event)
         (define key (send event get-key-code))
+        (define (run-search)
+          (define the-string (search-queue->string))
+          (unless (= (string-length the-string) 0)
+            (set! search-string the-string)
+            (do-next-search)))
         (cond
          [(check-escape event) (set-mode! 'command)]
          [else
           (match key
             ['escape (set-mode! 'command)]
             [#\return
-             (define the-string (search-queue->string))
-             (unless (= (string-length the-string) 0)
-               (set! search-string the-string)
-               (do-next-search))
+             (run-search)
              (set-mode! 'command)]
             [#\backspace
              (unless (queue-empty? search-queue)
-               (dequeue-char!))]
-            [(? char?) (enqueue-char! key)]
+               (dequeue-char!)
+               (run-search))]
+            [(? char?)
+             (enqueue-char! key)
+             (run-search)]
             [_ (void)])]))
 
       ;; [Boolean] -> Void

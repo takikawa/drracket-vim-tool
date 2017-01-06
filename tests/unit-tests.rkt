@@ -576,6 +576,13 @@
 (check-vim
  @~a{#lang racket
      banana}
+ '(#\/ #\b #\a escape #\x)
+ @~a{#lang racket
+     anana})
+
+(check-vim
+ @~a{#lang racket
+     banana}
  '(#\/ #\return #\x)
  @~a{lang racket
      banana})
