@@ -957,10 +957,7 @@
 
       ;; searching
       (inherit set-searching-state
-               get-search-hit-count
-               get-replace-search-hit
-               get-search-bubbles
-               finish-pending-search-work)
+               find-string)
 
       ;; (is-a?/c key-event%) -> void?
       ;; handle search mode key events
@@ -991,53 +988,34 @@
       ;; [Boolean] -> Void
       (define/private (do-next-search [continuing? #f])
         (when search-string
-          (define-values (_ total) (get-search-hit-count))
-          (cond [(and continuing? (> total 0))
-                 (begin-edit-sequence)
-                 (set-position vim-position)
-                 (move-position 'right)
-                 (sleep/yield 0.1) ; timeout determined experimentally
-                 (define-values (before _) (get-search-hit-count))
-                 (cond ;; if there are more hits ahead in the buffer
-                       ;; then continue to the next hit
-                       [(> (- total before) 0)
-                        (set-position (get-replace-search-hit))]
-                       ;; there are hits before the cursor and none after
-                       ;; so start over from the top
-                       [(and continuing? (> before 0))
-                        (set-position 0)
-                        ;; keep waiting until the search updates
-                        ;; ASSUMPTION: the buffer is not edited while we yield
-                        (let loop ([hit (get-replace-search-hit)])
-                          (if hit
-                              (set-position hit)
-                              (loop (begin (yield) (get-replace-search-hit)))))])
-                 (set-vim-position! (get-start-position))
-                 (end-edit-sequence)]
+          (begin-edit-sequence)
+          (define next-hit-from-0 (find-string search-string 'forward 0))
+          (cond [(and continuing? next-hit-from-0)
+                 (define next-search-hit
+                   (or (find-string search-string 'forward (+ vim-position 1))
+                       next-hit-from-0))
+                 (set-position next-search-hit)
+                 (set-vim-position! next-search-hit)]
                 ;; start a fresh search
                 [else
+                 (define next-search-hit
+                   (or (find-string search-string 'forward (get-start-position))
+                       next-hit-from-0))
                  (set-searching-state search-string #f #t #f)
-                 (finish-pending-search-work)
-                 (when (get-replace-search-hit)
-                   (set-vim-position! (get-replace-search-hit)))])))
+                 (when next-search-hit
+                   (set-position next-search-hit)
+                   (set-vim-position! next-search-hit))])
+          (end-edit-sequence)))
 
       ;; [position] -> void
       ;; execute a search going backwards from start-pos
       (define/private (do-previous-search [start-pos vim-position])
         (when search-string
-          (define bubbles (get-search-bubbles))
-          ;; ASSUMPTION: bubbles are ordered by position
-          (define matching-bubble
-            (for/last ([bubble (in-list bubbles)]
-                       #:when (< (caar bubble) start-pos))
-              bubble))
-          (cond [(null? bubbles) (void)]
-                [matching-bubble
-                 (set-vim-position! (caar matching-bubble))]
-                [;; there are other search hits but there wasn't
-                 ;; a match, therefore we have to loop from the end
-                 else
-                 (do-previous-search (last-position))])))
+          (define prev-search-hit
+            (or (and (> start-pos 0) (find-string search-string 'backward (- start-pos 1)))
+                (find-string search-string 'backward (last-position))))
+          (when prev-search-hit
+            (set-vim-position! (- prev-search-hit (string-length search-string))))))
 
       ;; (is-a?/c key-event%) -> void
       ;; handle ex commands
