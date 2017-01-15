@@ -214,6 +214,8 @@
   (define code (send key get-key-code))
   (match code
     [#\g 'start-of-file]
+    [#\t 'next-tab]
+    [#\T 'prev-tab]
     [_   #f]))
 
 (define (parse-mark next-key kind)

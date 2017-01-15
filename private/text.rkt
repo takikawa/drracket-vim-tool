@@ -507,6 +507,10 @@
           ['start-of-file (cmd-move-position 'home #f)]
           ['end-of-file   (cmd-move-position 'end #f)]
 
+          ;; tab management
+          ['next-tab (send parent-frame next-tab)]
+          ['prev-tab (send parent-frame prev-tab)]
+
           ;; editing
           ['join-line            (do-join-line)]
           ['delete-at-cursor     (do-delete-insertion-point)]
