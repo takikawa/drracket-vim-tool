@@ -111,6 +111,8 @@
      (parse-replace next-key)]
     [#\= (parse-filter next-key)]
     [#\c (parse-change next-key)]
+    [#\w #:when (send key get-control-down)
+     (parse-window next-key)]
 
     ;; insertion / change
     [#\a 'insert-end]
@@ -248,6 +250,14 @@
     [_
      (define motion (parse-motion key next-key))
      (and motion (motion-command 'change motion))]))
+
+;; window commands with ctrl-w
+(define (parse-window next-key)
+  (define key (next-key))
+  (define code (send key get-key-code))
+  ;; ctrl can be down or up for most of these
+  (match code
+    [#\w 'window-next]))
 
 (define (parse-motion first-key next-key)
   (define code (send first-key get-key-code))

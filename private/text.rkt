@@ -548,6 +548,13 @@
            (do-next-search)
            (set-mode! 'command)]
 
+          ;; window
+          ['window-next
+           (define def (send parent-frame get-definitions-canvas))
+           (define int (send parent-frame get-interactions-canvas))
+           (cond [(send def has-focus?) (send int focus)]
+                 [else (send def focus)])]
+
           ['single-repeat
            (when last-command
              (handle-command last-command))]
