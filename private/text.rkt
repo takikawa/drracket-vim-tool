@@ -1054,8 +1054,10 @@
         (match (list->string (gvector->list ex-queue))
           [(app string->number (? exact-positive-integer? num))
            (set-vim-position! (line-start-position (sub1 num)))]
-          ["q" (send parent-frame close-current-tab)]
-          ["w" (send this save-file)]
+          [(? (curry string-prefix? "quit"))
+           (send parent-frame close-current-tab)]
+          [(? (curry string-prefix? "write"))
+           (send this save-file)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
           ["tabnext" (send parent-frame next-tab)]
           ["tabprev" (send parent-frame prev-tab)]
