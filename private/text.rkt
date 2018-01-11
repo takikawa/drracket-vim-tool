@@ -1060,6 +1060,11 @@
            (send parent-frame close-current-tab)]
           [(? (curry string-prefix? "write"))
            (send this save-file)]
+          [(pregexp "enew?$")
+           (when (not (send this is-modified?))
+             (new-buffer))]
+          [(pregexp "enew?!$")
+           (new-buffer)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
           ["tabnext" (send parent-frame next-tab)]
           ["tabprev" (send parent-frame prev-tab)]
@@ -1070,6 +1075,15 @@
           [_ (void)])
         (set-mode! 'command)
         (set! ex-queue (gvector)))
+
+      ;; clear the buffer and make it a new unsaved buffer
+      (define/private (new-buffer)
+        (begin-edit-sequence)
+        (send this select-all)
+        (send this clear)
+        (send this set-filename #f)
+        (send this clear-undos)
+        (end-edit-sequence))
 
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
