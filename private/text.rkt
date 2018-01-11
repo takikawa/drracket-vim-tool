@@ -1065,6 +1065,8 @@
              (new-buffer))]
           [(pregexp "enew?!$")
            (new-buffer)]
+          [(pregexp "^(edit|edi|ed|e) +(.*)?$" (list _ _ filename))
+           (edit-file filename)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
           ["tabnext" (send parent-frame next-tab)]
           ["tabprev" (send parent-frame prev-tab)]
@@ -1084,6 +1086,15 @@
         (send this set-filename #f)
         (send this clear-undos)
         (end-edit-sequence))
+
+      ;; open a file for editing, possibly a new file
+      (define/private (edit-file path-str)
+        (define path (string->path path-str))
+        (cond [(file-exists? path)
+               (send this load-file path)]
+              [else
+               (new-buffer)
+               (send this set-filename path)]))
 
       ;; deletes starting from the next newline and to the first
       ;; non-whitespace character after that position
