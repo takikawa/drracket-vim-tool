@@ -988,9 +988,11 @@
              (run-search)
              (set-mode! 'command)]
             [#\backspace
-             (unless (queue-empty? search-queue)
-               (dequeue-char!)
-               (run-search))]
+             (cond [(queue-empty? search-queue)
+                    (set-mode! 'command)]
+                   [else
+                    (dequeue-char!)
+                    (run-search)])]
             [(? char?)
              (enqueue-char! key)
              (run-search)]
