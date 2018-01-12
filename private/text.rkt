@@ -1065,6 +1065,9 @@
              (new-buffer))]
           [(pregexp "enew?!$")
            (new-buffer)]
+          [(pregexp "^find?(!)?$" (list _ !?))
+           (when (or !?  (not (send this is-modified?)))
+             (send this load-file ""))]
           [(pregexp "^(edit|edi|ed|e) +(.*)?$" (list _ _ filename))
            (edit-file filename)]
           ["tabnew" (send parent-frame open-in-new-tab #f)]
