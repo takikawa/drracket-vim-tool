@@ -925,4 +925,29 @@
   '(#\l #\d #\a #\()
   @~a{ foo bar})
 
+;; tabify in various cases
+(check-vim
+ @~a{  (+ x 1)}
+ '(#\= #\=)
+ @~a{(+ x 1)})
+
+(check-vim
+ @~a{  (+ x 1)}
+ '(#\V #\=)
+ @~a{(+ x 1)})
+
+(check-vim
+ @~a{  (+ x 1)
+       (* x 2)}
+ '(#\V #\j #\=)
+ @~a{(+ x 1)
+     (* x 2)})
+
+(check-vim
+ @~a{  (+ x 1)
+       (* x 2)}
+ '(#\v #\j #\=)
+ @~a{(+ x 1)
+     (* x 2)})
+
 (exit)

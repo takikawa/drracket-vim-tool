@@ -955,6 +955,9 @@
             [#\p (begin (paste)
                         (set-mode! 'command))]
 
+            ;; indentation
+            [#\= (visual-filter)]
+
             ;; toggling visual modes
             [#\v (if (eq? mode 'visual)
                      (set-mode! 'command)
@@ -1210,6 +1213,11 @@
                       (add1 (unbox be))
                       (unbox be)))
           (visual-cleanup)))
+
+      ;; visual line indentation
+      (define/private (visual-filter)
+        (send this tabify-selection)
+        (visual-cleanup))
 
       ;; clear selection and end visual mode
       (define/private (visual-cleanup)
