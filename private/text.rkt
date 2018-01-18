@@ -884,25 +884,44 @@
              [(or 'same 'down)
               (set-position (get-start-position)
                             (line-end-position (position-line vim-position)))
-              (set! visual-line-mode-direction 'down)]
+              (set! visual-line-mode-direction 'down)
+              ;; This (and similar line below) fixes janky scrolling when
+              ;; scrolling off the page in visual line mode
+              ;; FIXME: this may not be fixing the root cause
+              (scroll-to-position (get-start-position)
+                                  #f
+                                  (get-end-position)
+                                  'start)]
              ['up
               (set-position (line-start-position (position-line vim-position))
                             (get-end-position))
               (when (= (position-line (get-start-position))
                        (position-line (get-end-position)))
-                (set! visual-line-mode-direction 'same))])]
+                (set! visual-line-mode-direction 'same))])
+              (scroll-to-position (get-start-position)
+                                  #f
+                                  (get-end-position)
+                                  'end)]
           [('visual-line 'up)
            (match visual-line-mode-direction
              [(or 'same 'up)
               (set-position (line-start-position (position-line vim-position))
                             (get-end-position))
-              (set! visual-line-mode-direction 'up)]
+              (set! visual-line-mode-direction 'up)
+              (scroll-to-position (get-start-position)
+                                  #f
+                                  (get-end-position)
+                                  'start)]
              ['down
               (set-position (get-start-position)
                             (line-end-position (position-line vim-position)))
               (when (= (position-line (get-start-position))
                        (position-line (get-end-position)))
-                (set! visual-line-mode-direction 'same))])]
+                (set! visual-line-mode-direction 'same))
+              (scroll-to-position (get-start-position)
+                                  #f
+                                  (get-end-position)
+                                  'end)])]
           [('visual-line 'prior)
            (when (equal? visual-line-mode-direction 'same)
              (set! visual-line-mode-direction 'up)
