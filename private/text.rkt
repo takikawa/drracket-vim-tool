@@ -856,30 +856,16 @@
         (cmd-move-position code #f kind)
 
         (match* (mode code)
-          [('visual 'down)
-           (cond [(> vim-position (get-end-position))
+          [('visual (or 'down 'right))
+           (cond [(>= vim-position (get-end-position))
                   (set-position (get-start-position) (add1 vim-position))]
                  [(> vim-position (get-start-position))
                   (set-position vim-position (get-end-position))])]
-          [('visual 'up)
+          [('visual (or 'up 'left))
            (cond [(< vim-position (get-start-position))
                   (set-position vim-position (get-end-position))]
-                 [(< vim-position (get-end-position))
+                 [(<= vim-position (get-end-position))
                   (set-position (get-start-position) (add1 vim-position))])]
-          [('visual 'left)
-           (cond [(or (= (get-start-position) old-position)
-                      (= (get-start-position) (sub1 (get-end-position))))
-                  (move-position 'left #t)]
-                 [else
-                  (set-position (get-start-position)
-                                (sub1 (get-end-position)))])]
-          [('visual 'right)
-           (cond [(or (>= vim-position (get-end-position))
-                      (= (get-start-position) (sub1 (get-end-position))))
-                  (move-position 'right #t)]
-                 [else
-                  (set-position (add1 (get-start-position))
-                                (get-end-position))])]
           [('visual-line (or 'left 'right))
            (void)]
           [('visual-line 'down)
@@ -923,19 +909,11 @@
               (scroll-to-position (get-start-position)
                                   #f
                                   (get-end-position)
-                                  'end)])]
-          [('visual-line 'prior)
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'up)
-             (move-position 'right #f 'line)
-             (move-position 'left #t 'line))
-           (move-position 'up #t 'page)]
-          [('visual-line 'next)
-           (when (equal? visual-line-mode-direction 'same)
-             (set! visual-line-mode-direction 'down)
-             (move-position 'left #f 'line)
-             (move-position 'right #t 'line))
-           (move-position 'down #t 'page)])
+                                  'end)])])
+
+        ;; reset scroll after visual selection is set
+        ;; this prevents weird scrolling behavior
+        (scroll-to-position vim-position)
 
         (do-caret-update)
         (end-edit-sequence))
