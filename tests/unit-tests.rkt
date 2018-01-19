@@ -950,4 +950,17 @@
  @~a{(+ x 1)
      (* x 2)})
 
+;; visual line movement tests
+;; related to issues #112, #122, #127
+
+(check-vim
+ @~a{hello world}
+ '(#\v #\w #\w #\x)
+ @~a{})
+
+(check-vim
+ @~a{hello world}
+ '(#\v #\w #\b #\x)
+ @~a{ello world})
+
 (exit)
