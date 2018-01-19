@@ -855,6 +855,17 @@
         ;; first move cursor, this shouldn't clobber the text positions
         (cmd-move-position code #f kind)
 
+        ;; don't allow the cursor to go off the line with left/right movements
+        ;; in visual line mode
+        (when (and (eq? mode 'visual-line)
+                   (or (eq? code 'left) (eq? code 'right)))
+          (define old-line (position-line old-position))
+          (define new-line (position-line vim-position))
+          (cond [(< old-line new-line)
+                 (set-vim-position! (sub1 (line-end-position old-line)))]
+                [(> old-line new-line)
+                 (set-vim-position! (line-start-position old-line))]))
+
         (match* (mode code)
           [('visual (or 'down 'right))
            (cond [(>= vim-position (get-end-position))
