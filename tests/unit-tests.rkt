@@ -963,4 +963,11 @@
  '(#\v #\w #\b #\x)
  @~a{ello world})
 
+;; issue #121, pasting char
+
+(check-vim
+ @~a{(defien x 1)}
+ '(#\l #\l #\l #\l #\l #\x #\p)
+ @~a{(define x 1)})
+
 (exit)
