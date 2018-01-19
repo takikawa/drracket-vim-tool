@@ -838,7 +838,10 @@
                          (equal? char #\}))
                  (move-position 'right))]
               [else
-               (set-position text-start text-end)])
+               (set-position text-start text-end)
+               ;; the set-position above may trigger a scroll, so we need to
+               ;; reset the scrolling to the right internal position
+               (scroll-to-position vim-position)])
 
         (do-caret-update)
         (end-edit-sequence))
@@ -887,7 +890,6 @@
               (set! visual-line-mode-direction 'down)
               ;; This (and similar line below) fixes janky scrolling when
               ;; scrolling off the page in visual line mode
-              ;; FIXME: this may not be fixing the root cause
               (scroll-to-position (get-start-position)
                                   #f
                                   (get-end-position)
