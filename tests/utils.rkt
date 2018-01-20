@@ -9,7 +9,8 @@
          rackunit
          (for-syntax racket/base))
 
-(provide check-vim)
+(provide check-vim
+         check-vim-not-exn)
 
 ;; A mock frame% that pretends to support vim features
 (define mock-frame%
@@ -48,3 +49,9 @@
     [(_ initial-text keys final-text)
      #`(let ([output (do-text-actions initial-text keys)])
          #,(syntax/loc stx (check-equal? output final-text)))]))
+
+(define-syntax (check-vim-not-exn stx)
+  (syntax-case stx ()
+    [(_ initial-text keys)
+     (syntax/loc stx
+       (check-not-exn (lambda () (do-text-actions initial-text keys))))]))

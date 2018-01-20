@@ -257,7 +257,8 @@
   (define code (send key get-key-code))
   ;; ctrl can be down or up for most of these
   (match code
-    [#\w 'window-next]))
+    [#\w 'window-next]
+    [_   #f]))
 
 (define (parse-motion first-key next-key)
   (define code (send first-key get-key-code))

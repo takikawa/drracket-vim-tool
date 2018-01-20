@@ -9,6 +9,9 @@
 (define ctrl-c
   (new key-event% [key-code #\c] [control-down #t]))
 
+(define ctrl-w
+  (new key-event% [key-code #\w] [control-down #t]))
+
 (define ctrl-lsb
   (new key-event% [key-code #\[] [control-down #t]))
 
@@ -969,5 +972,11 @@
  @~a{(defien x 1)}
  '(#\l #\l #\l #\l #\l #\x #\p)
  @~a{(define x 1)})
+
+;; ensure window movement doesn't break input
+
+(check-vim-not-exn
+ @~a{}
+ `(,ctrl-w #\h))
 
 (exit)
