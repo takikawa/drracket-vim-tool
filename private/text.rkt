@@ -171,6 +171,7 @@
                    (set-mode! 'command))
                  (set-vim-position! pos)
                  (set-position pos)
+                 (adjust-eol-position)
                  (do-caret-update)]
                 [;; left click + drag
                  (and (eq? type 'motion)
@@ -212,15 +213,13 @@
         (unhighlight-ranges/key 'drracket-vim-highlight)
 
         ;; draw the cursor
-        (cond [(and (not (empty-line?))
-                    (not (at-end-of-line?))
-                    (not (eq? mode 'insert)))
-               (highlight-range vim-position (add1 vim-position) cursor-color
-                                #f
-                                'high
-                                #:key 'drracket-vim-highlight)]
-              [else
-               (invalidate-bitmap-cache)])
+        (when (and (not (empty-line?))
+                   (not (at-end-of-line?))
+                   (not (eq? mode 'insert)))
+          (highlight-range vim-position (add1 vim-position) cursor-color
+                           #f
+                           'high
+                           #:key 'drracket-vim-highlight))
 
         (when (or (eq? mode 'visual)
                   (eq? mode 'visual-line))
@@ -229,7 +228,9 @@
                            selection-color
                            #f
                            'low ; to draw under the cursor
-                           #:key 'drracket-vim-highlight)))
+                           #:key 'drracket-vim-highlight))
+
+        (invalidate-bitmap-cache))
 
       ;; override painting to draw an extra selection at the end of the line
       ;; like vim does.
@@ -786,6 +787,15 @@
             (cmd-move-position 'left)
             (adjust-caret-eol))))
 
+      ;; Don't allow navigation to the "end of line" position
+      ;; since this would go "off the end" in vim
+      (define/private (adjust-eol-position)
+        (when (eq? mode 'command)
+          (when (and (not (empty-line?))
+                     (at-end-of-line?))
+            (set-position (sub1 vim-position))
+            (set-vim-position! (sub1 vim-position)))))
+
       ;; like the move-position method in texts, but this method adjusts both
       ;; the vim position and text position for command/visual mode
       (define/private (cmd-move-position code [extend? #f] [kind 'simple])
@@ -800,13 +810,7 @@
         (move-position code extend? kind)
         (set-vim-position! (get-start-position) (not (eq? kind 'page)))
 
-        ;; Don't allow navigation to the "end of line" position
-        ;; since this would go "off the end" in vim
-        (when (eq? mode 'command)
-          (when (and (not (empty-line?))
-                     (at-end-of-line?))
-            (set-position (sub1 vim-position))
-            (set-vim-position! (sub1 vim-position))))
+        (adjust-eol-position)
 
         ;; implements vim's tracking of the column to move to
         (when (and (or (eq? code 'up) (eq? code 'down))
