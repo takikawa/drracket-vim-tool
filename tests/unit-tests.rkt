@@ -979,4 +979,21 @@
  @~a{}
  `(,ctrl-w #\h))
 
+;; shift left & shift right
+
+(check-vim
+ @~a{hello}
+ `(#\> #\>)
+ @~a{  hello})
+
+(check-vim
+ @~a{  hello}
+ `(#\< #\<)
+ @~a{hello})
+
+(check-vim
+ @~a{hello}
+ `(#\> #\> #\< #\<)
+ @~a{hello})
+
 (exit)

@@ -517,6 +517,8 @@
           ['delete-at-cursor     (do-delete-insertion-point)]
           ['delete-before-cursor (do-delete-before-insertion-point)]
           ['toggle-case          (do-toggle-case)]
+          ['shift-right          (do-shift 'right)]
+          ['shift-left           (do-shift 'left)]
 
           ;; FIXME: in vim this can call out to an external program, but
           ;;        for now it only does the default behavior of indenting
@@ -1139,6 +1141,18 @@
         (insert new-ch vim-position)
         (cmd-move-position 'right))
 
+      ;; shift line by some indentation amount
+      ;; FIXME: make shiftwidth configurable?
+      (define/private (do-shift kind)
+        (define-values (start _) (get-current-line-start-end))
+        (match kind
+          ['left
+           (for ([_ 2])
+             (when (eq? (get-character start) #\space)
+               (delete start (add1 start) #f)))]
+          ['right
+           (insert "  " start 'same #f)]))
+
       ;; implements the behavior of "%" and friends in vim
       (define/private (do-matching-paren action)
         (define pos vim-position)
@@ -1240,9 +1254,7 @@
       ;; -> (values int int)
       ;; gets the start and end position of the line at the start of current selection
       (define/private (get-current-line-start-end)
-        (define b (box 0))
-        (get-position b)
-        (define line (position-line (unbox b)))
+        (define line (position-line vim-position))
         (values (line-start-position line)
                 (line-end-position line)))
 

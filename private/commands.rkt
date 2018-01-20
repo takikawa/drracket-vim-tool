@@ -113,6 +113,8 @@
     [#\c (parse-change next-key)]
     [#\w #:when (send key get-control-down)
      (parse-window next-key)]
+    [#\> (parse-shift-right next-key)]
+    [#\< (parse-shift-left next-key)]
 
     ;; insertion / change
     [#\a 'insert-end]
@@ -258,6 +260,22 @@
   ;; ctrl can be down or up for most of these
   (match code
     [#\w 'window-next]
+    [_   #f]))
+
+(define (parse-shift-right next-key)
+  (define key (next-key))
+  (define code (send key get-key-code))
+  (match code
+    [#\> 'shift-right]
+    ;; FIXME: support motions
+    [_   #f]))
+
+(define (parse-shift-left next-key)
+  (define key (next-key))
+  (define code (send key get-key-code))
+  (match code
+    [#\< 'shift-left]
+    ;; FIXME: support motions
     [_   #f]))
 
 (define (parse-motion first-key next-key)
