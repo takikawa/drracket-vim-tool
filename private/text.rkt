@@ -947,7 +947,9 @@
             [#\b (vis-move-position 'left 'word)]
             [#\w (vis-move-position 'right 'word)]
             [#\$ (vis-move-position 'right 'line)]
+            ;; FIXME: ^ should skip whitespace
             [#\^ (vis-move-position 'left 'line)]
+            [#\0 (vis-move-position 'left 'line)]
             [(or #\h 'left)  (vis-move-position 'left)]
             [(or #\j 'down)  (vis-move-position 'down)]
             [(or #\k 'up)    (vis-move-position 'up)]

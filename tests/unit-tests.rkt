@@ -1020,4 +1020,13 @@
      3
         4})
 
+;; issue #131, 0 in visual mode
+
+(check-vim
+ @~a{hello
+     world}
+ `(#\$ #\v #\0 #\x)
+ @~a{
+     world})
+
 (exit)
