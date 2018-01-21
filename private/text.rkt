@@ -417,16 +417,10 @@
           [(? motion-command?)   (handle-motion-command command)]
           [(? mark-command?)     (handle-mark command)]
           [(? replace-command?)  (handle-replace command)]
-          [(? repeat-command?)  (for ([i (in-range (repeat-command-repeat command))])
-                                  (handle-command (repeat-command-command command)))]
-          [(? goto-command?)
-           (match-define (goto-command line) command)
-           (define pos
-             (if (eq? line 'last-line)
-                 (line-start-position (last-line))
-                 (line-start-position (sub1 line))))
-           (set-vim-position! pos)]
-          [_ (handle-simple-command command)])
+          [(? repeat-command?)   (for ([i (in-range (repeat-command-repeat command))])
+                                   (handle-command (repeat-command-command command)))]
+          [(? goto-command?)     (handle-goto command)]
+          [_                     (handle-simple-command command)])
 
         (unless (or (eq? command 'single-repeat)
                     (movement-command? command))
@@ -505,8 +499,8 @@
                       (match dir
                         ['backward (set-vim-position! s)]
                         ['forward  (set-vim-position! (sub1 e))])))]
-          ['start-of-file (cmd-move-position 'home #f)]
-          ['end-of-file   (cmd-move-position 'end #f)]
+          ['start-of-file (handle-goto (goto-command 1))]
+          ['end-of-file   (handle-goto (goto-command 'last-line))]
 
           ;; tab management
           ['next-tab (send parent-frame next-tab)]
@@ -606,6 +600,19 @@
             ['right (do-character do-range)]))
         (when ok?
           (do-post)))
+
+      ;; handle goto commands like gg, G, etc.
+      (define/private (handle-goto command)
+        (match-define (goto-command line) command)
+        (define pos
+          (if (eq? line 'last-line)
+              ;; use `get-start-of-line` to skip whitespace
+              ;; at the start of the line
+              (send this get-start-of-line
+                    (line-start-position (last-line)))
+              (send this get-start-of-line
+                    (line-start-position (sub1 line)))))
+        (set-vim-position! pos))
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste [after? #t])

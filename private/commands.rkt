@@ -185,6 +185,10 @@
     (match (send event get-key-code)
       [#\G
        (goto-command (if (zero? num) 'last-line num))]
+      [#\g
+       (match (send (next-key) get-key-code)
+         [#\g (goto-command num)]
+         [_   #f])]
       [(? digit? digit)
        (loop (+ (char-numeric->number digit) (* 10 num)))]
       [_

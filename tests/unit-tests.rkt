@@ -126,7 +126,7 @@
      foobar}
  '(#\G #\x)
  @~a{#lang racket
-     fooba})
+     oobar})
 
 (check-vim
  @~a{#lang racket
@@ -995,5 +995,29 @@
  @~a{hello}
  `(#\> #\> #\< #\<)
  @~a{hello})
+
+;; G and gg should go to first non-space
+
+(check-vim
+ @~a{   1
+     2
+     3
+        4}
+ `(#\G #\x)
+ @~a{   1
+     2
+     3
+        @||})
+
+(check-vim
+ @~a{   1
+     2
+     3
+        4}
+ `(#\j #\j #\g #\g #\x)
+ @~a{   @||
+     2
+     3
+        4})
 
 (exit)
