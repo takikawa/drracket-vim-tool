@@ -1,6 +1,14 @@
 #lang at-exp racket/gui
 
 ;; Tests for DrRacket vim plugin
+;;
+;; How to write tests:
+;;   - Add a new comment block explaining the test (include issue#, etc)
+;;   - Add `check-vim` (or `check-vim-not-exn`) tests
+;;   - check-vim takes a before string, a list of keys, and after string
+;;   - Use @~a{ ... } notation to write contents of text buffer for tests
+;;     (this is at-expression syntax, detailed here:
+;;      https://docs.racket-lang.org/scribble/reader.html)
 
 (require "utils.rkt"
          racket/format
