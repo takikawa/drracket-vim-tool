@@ -186,6 +186,12 @@
                  (update-mode!)
                  (do-caret-update)])))
 
+      ;; override scrolling in order to avoid glitchy painting in visual mode
+      ;; when the mouse is used to scroll
+      (define/override (after-scroll-to)
+        (super after-scroll-to)
+        (do-caret-update))
+
       ;; some events are ignored because they're irrelevant for vim emulation,
       ;; such as key release events (FIXME: this may not be exhaustive)
       (define/private (ignored-event? event)
