@@ -639,7 +639,7 @@
                         (define diff-lines (- (add1 (last-line)) num-lines))
                         (delete (line-start-position (+ line diff-lines))))]
                      [else
-                      (paste 0 (line-start-position (sub1 line)))])
+                      (paste 0 (line-start-position line))])
                (end-edit-sequence)]
               [after?
                (define old-pos vim-position)
@@ -1299,4 +1299,3 @@
           (cmd-move-position 'left)))
 
       (super-new))))
-

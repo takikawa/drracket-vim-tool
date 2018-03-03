@@ -1037,4 +1037,17 @@
  @~a{
      world})
 
+  ;; issue #135
+  (check-vim
+    @~a{abcd
+        efgh
+        iiii
+        ijkl}
+    `(#\j #\j #\y #\y #\P)
+    @~a{abcd
+        efgh
+        iiii
+        iiii
+        ijkl})
+
 (exit)
