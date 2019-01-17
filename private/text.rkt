@@ -1076,6 +1076,8 @@
            (send parent-frame close-current-tab)]
           [(? (curry string-prefix? "write"))
            (send this save-file)]
+          [(pregexp "^goto +(.*)$" (list _ (app string->number (? exact-positive-integer? pos))))
+           (set-vim-position! (sub1 pos))]
           [(pregexp "enew?$")
            (when (not (send this is-modified?))
              (new-buffer))]
