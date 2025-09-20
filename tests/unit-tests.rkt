@@ -6,7 +6,7 @@
 ;;   - Add a new comment block explaining the test (include issue#, etc)
 ;;   - Add `check-vim` (or `check-vim-not-exn`) tests
 ;;   - check-vim takes a before string, a list of keys, and after string
-;;   - Use @~a{ ... } notation to write contents of text buffer for tests
+;;   - Use @~a{ ... } notation to write contents of text buffer for 
 ;;     (this is at-expression syntax, detailed here:
 ;;      https://docs.racket-lang.org/scribble/reader.html)
 
@@ -420,6 +420,7 @@
  @~a{abc def ghi}
  '(#\l #\d #\w)
  @~a{adef ghi})
+
 
 (check-vim
  @~a{#lang racket}
@@ -1049,5 +1050,105 @@
       iiii
       iiii
       ijkl})
+
+;; Find character commands (f, F, t, T)
+;; Basic f command tests
+(check-vim
+ @~a{hello world}
+ '(#\f #\w)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\l #\l #\f #\w)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\f #\o)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\f #\l)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\f #\l #\f #\l)
+ @~a{hello world})
+
+;; F command (backward find)
+(check-vim
+ @~a{hello world}
+ '(#\$ #\F #\o)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\$ #\F #\l)
+ @~a{hello world})
+
+;; t command (til forward)
+(check-vim
+ @~a{hello world}
+ '(#\t #\w)
+ @~a{hello world})
+
+(check-vim
+ @~a{hello world}
+ '(#\t #\o)
+ @~a{hello world})
+
+;; T command (til backward)
+(check-vim
+ @~a{hello world}
+ '(#\$ #\T #\o)
+ @~a{hello world})
+
+;; Semicolon repetition
+(check-vim
+ @~a{hello hello}
+ '(#\f #\l #\; #\;)
+ @~a{hello hello})
+
+;; Comma reverse repetition
+(check-vim
+ @~a{hello hello}
+ '(#\$ #\F #\l #\, #\,)
+ @~a{hello hello})
+
+;; Find with operators (df, cf, yf)
+(check-vim
+ @~a{hello world}
+ '(#\d #\f #\w)
+ @~a{orld})
+
+(check-vim
+ @~a{hello world}
+ '(#\d #\t #\w)
+ @~a{world})
+
+(check-vim
+ @~a{hello world}
+ '(#\c #\f #\o #\x)
+ @~a{x world})
+
+;; Find char not found (no movement)
+(check-vim
+ @~a{hello world}
+ '(#\f #\z #\x)
+ @~a{ello world})
+
+;; Find across multiple occurrences
+(check-vim
+ @~a{abcabcabc}
+ '(#\f #\c #\; #\;)
+ @~a{abcabcabc})
+
+(check-vim
+ @~a{abcabcabc}
+ '(#\$ #\F #\a #\, #\,)
+ @~a{abcabcabc})
 
 (exit)

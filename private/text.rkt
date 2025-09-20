@@ -123,6 +123,9 @@
       ;;        to paste types instead
       (define paste-type 'normal)
 
+      ;; track last find-char command for ; and , repetition
+      (define last-find-char-command #f)
+
       ;; ==== overrides & augments ====
       (inherit line-length hide-caret position-location get-line-spacing
                find-position global-to-local)
@@ -426,6 +429,7 @@
           [(? repeat-command?)   (for ([i (in-range (repeat-command-repeat command))])
                                    (handle-command (repeat-command-command command)))]
           [(? goto-command?)     (handle-goto command)]
+          [(? find-char-command?) (handle-find-char-command command)]
           [_                     (handle-simple-command command)])
 
         (unless (or (eq? command 'single-repeat)
@@ -562,6 +566,16 @@
            (when last-command
              (handle-command last-command))]
 
+          ;; find-char repetition
+          ['repeat-find-char
+           (when last-find-char-command
+             (handle-find-char-command last-find-char-command))]
+          ['repeat-find-char-opposite
+           (when last-find-char-command
+             (match-define (find-char-command direction inclusive? char) last-find-char-command)
+             (define opposite-direction (if (eq? direction 'forward) 'backward 'forward))
+             (handle-find-char-command (find-char-command opposite-direction inclusive? char)))]
+
           [_   (void)]))
 
       (define/private (handle-motion-command command)
@@ -603,7 +617,8 @@
             ['left  (do-character do-range 'backward)]
             ['down  (do-one-line do-range 'down)]
             ['up    (do-one-line do-range 'up)]
-            ['right (do-character do-range)]))
+            ['right (do-character do-range)]
+            [(? find-char-command?) (do-find-char-motion motion do-range)]))
         (when ok?
           (do-post)))
 
@@ -619,6 +634,71 @@
               (send this get-start-of-line
                     (line-start-position (sub1 line)))))
         (set-vim-position! pos))
+
+      ;; handle find-char commands (f, F, t, T)
+      (define/private (handle-find-char-command command)
+        (match-define (find-char-command direction inclusive? char) command)
+        (define found-pos (find-char-on-line char direction inclusive?))
+        (when found-pos
+          (set-vim-position! found-pos)
+          (set! last-find-char-command command)))
+
+      ;; core character finding logic within current line
+      (define/private (find-char-on-line target-char direction inclusive?)
+        (define current-line (position-line vim-position))
+        (define line-start (line-start-position current-line))
+        (define line-end (line-end-position current-line))
+
+        (define search-start
+          (if (eq? direction 'forward)
+              (add1 vim-position)  ; start searching after current position
+              (sub1 vim-position))) ; start searching before current position
+
+        (define search-end
+          (if (eq? direction 'forward)
+              line-end
+              line-start))
+
+        ;; ensure we don't go out of line bounds
+        (when (and (>= search-start line-start)
+                   (<= search-start line-end)
+                   (if (eq? direction 'forward)
+                       (<= search-start search-end)
+                       (>= search-start search-end)))
+          (let loop ([pos search-start])
+            (cond
+              ;; reached the end/start of line without finding
+              [(if (eq? direction 'forward)
+                   (> pos search-end)
+                   (< pos search-end))
+               #f]
+              ;; found the target character
+              [(char=? (get-character pos) target-char)
+               (if inclusive?
+                   pos  ; f/F: cursor lands on character
+                   (let ([til-pos (if (eq? direction 'forward)
+                                      (sub1 pos)  ; t: cursor lands before character
+                                      (add1 pos))]) ; T: cursor lands after character
+                     ;; ensure we don't go out of line bounds for t/T
+                     (if (and (>= til-pos line-start) (<= til-pos line-end))
+                         til-pos
+                         pos)))] ; fallback to character position if out of bounds
+              ;; continue searching
+              [else
+               (loop (if (eq? direction 'forward)
+                         (add1 pos)
+                         (sub1 pos)))]))))
+
+      ;; handle find-char motions for use with operators (d, c, y)
+      (define/private (do-find-char-motion command do-range)
+        (match-define (find-char-command direction inclusive? char) command)
+        (define found-pos (find-char-on-line char direction inclusive?))
+        (when found-pos
+          (set! last-find-char-command command)
+          (if (eq? direction 'forward)
+              (do-range vim-position (add1 found-pos))
+              (do-range found-pos (add1 vim-position)))
+          #t))
 
       ;; handle pasting, esp. visual-line type pasting
       (define/private (do-paste [after? #t])
@@ -742,9 +822,14 @@
         (define-values (start end)
           (values (box vim-position) (box vim-position)))
         (find-wordbreak start end 'selection)
-        (f (get-start-position)
-           ;; vim includes whitespace up to next word
-           (skip-whitespace-forward (unbox end))))
+        (define end-pos (unbox end))
+        (define whitespace-end (skip-whitespace-forward end-pos))
+        ;; Only include whitespace if it's on the same line
+        (define final-end
+          (if (= (position-line whitespace-end) (position-line end-pos))
+              whitespace-end
+              end-pos))
+        (f (get-start-position) final-end))
 
       ;; (position position -> any) -> any
       ;; handle a word backward motion, using f as the action

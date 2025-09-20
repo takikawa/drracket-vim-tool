@@ -14,6 +14,7 @@
          (struct-out repeat-motion)
          (struct-out replace-command)
          (struct-out goto-command)
+         (struct-out find-char-command)
          movement-command?)
 
 ;; A Command is one of
@@ -23,11 +24,13 @@
 ;;   - (mark-command Mark-Kind Char)
 ;;   - (replace-command Char)
 ;;   - (goto-command (U 'line Integer))
+;;   - (find-char-command Direction Inclusive? Char)
 (struct repeat-command (repeat command))
 (struct motion-command (operator motion))
 (struct mark-command (kind mark))
 (struct replace-command (char))
 (struct goto-command (line))
+(struct find-char-command (direction inclusive? char))
 
 ;; A Repeat is an integer
 ;; An Operator (for a motion command) is one of
@@ -58,6 +61,11 @@
 ;;   - (repeat-motion Repeat Motion)
 ;;     where Motion is a symbol
 (struct repeat-motion (repeat motion))
+
+;; A Direction (for find-char-command) is one of 'forward or 'backward
+;; An Inclusive? is a boolean:
+;;   - #t for f/F commands (cursor lands on the character)
+;;   - #f for t/T commands (cursor lands before/after the character)
 
 ;; These codes are ignored in the sense that they are skipped over
 ;; and they don't interrupt a command sequence.
@@ -115,6 +123,11 @@
      (parse-window next-key)]
     [#\> (parse-shift-right next-key)]
     [#\< (parse-shift-left next-key)]
+    [#\f #:when (not (send key get-control-down))
+     (parse-find-char next-key 'forward #t)]
+    [#\F (parse-find-char next-key 'backward #t)]
+    [#\t (parse-find-char next-key 'forward #f)]
+    [#\T (parse-find-char next-key 'backward #f)]
 
     ;; insertion / change
     [#\a 'insert-end]
@@ -174,6 +187,8 @@
 
     ;; other
     [#\.     'single-repeat]
+    [#\;     'repeat-find-char]
+    [#\,     'repeat-find-char-opposite]
 
     [_ #f]))
 
@@ -282,6 +297,20 @@
     ;; FIXME: support motions
     [_   #f]))
 
+(define (parse-find-char next-key direction inclusive?)
+  (define key (next-key))
+  (define char (send key get-key-code))
+  (and (char? char)
+       (not (check-escape-char char))
+       (find-char-command direction inclusive? char)))
+
+;; check if a character is escape-like (should not be used in find commands)
+(define (check-escape-char char)
+  (or (eq? char 'escape)
+      (char=? char #\return)
+      (char=? char #\newline)
+      (char=? char #\tab)))
+
 (define (parse-motion first-key next-key)
   (define code (send first-key get-key-code))
   (match code
@@ -300,12 +329,17 @@
     [#\b     'word-backward]
     [#\%     'match]
     [#\"     'double-quote]
+    [#\f     (parse-find-char next-key 'forward #t)]
+    [#\F     (parse-find-char next-key 'backward #t)]
+    [#\t     (parse-find-char next-key 'forward #f)]
+    [#\T     (parse-find-char next-key 'backward #f)]
     [(or #\space #\l) 'right]
     [_   #f]))
 
 ;; check if the given command is a movement command
 (define (movement-command? command)
   (or (goto-command? command)
+      (find-char-command? command)
       (memq command
             '(left down up right
               next-page previous-page
@@ -314,4 +348,5 @@
               start-of-line end-of-line
               start-of-line-content
               match
-              start-of-file end-of-file))))
+              start-of-file end-of-file
+              repeat-find-char repeat-find-char-opposite))))
