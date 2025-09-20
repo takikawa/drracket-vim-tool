@@ -6,7 +6,7 @@
 ;;   - Add a new comment block explaining the test (include issue#, etc)
 ;;   - Add `check-vim` (or `check-vim-not-exn`) tests
 ;;   - check-vim takes a before string, a list of keys, and after string
-;;   - Use @~a{ ... } notation to write contents of text buffer for tests
+;;   - Use @~a{ ... } notation to write contents of text buffer for 
 ;;     (this is at-expression syntax, detailed here:
 ;;      https://docs.racket-lang.org/scribble/reader.html)
 
@@ -420,6 +420,7 @@
  @~a{abc def ghi}
  '(#\l #\d #\w)
  @~a{adef ghi})
+
 
 (check-vim
  @~a{#lang racket}

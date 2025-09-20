@@ -822,9 +822,14 @@
         (define-values (start end)
           (values (box vim-position) (box vim-position)))
         (find-wordbreak start end 'selection)
-        (f (get-start-position)
-           ;; vim includes whitespace up to next word
-           (skip-whitespace-forward (unbox end))))
+        (define end-pos (unbox end))
+        (define whitespace-end (skip-whitespace-forward end-pos))
+        ;; Only include whitespace if it's on the same line
+        (define final-end
+          (if (= (position-line whitespace-end) (position-line end-pos))
+              whitespace-end
+              end-pos))
+        (f (get-start-position) final-end))
 
       ;; (position position -> any) -> any
       ;; handle a word backward motion, using f as the action
