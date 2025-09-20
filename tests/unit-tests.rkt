@@ -13,7 +13,7 @@
 (require "utils.rkt"
          racket/format
          rackunit
-         raco/testing)
+         rackunit/log)
 
 (define ctrl-c
   (new key-event% [key-code #\c] [control-down #t]))
@@ -1152,5 +1152,5 @@
  '(#\$ #\F #\a #\, #\,)
  @~a{abcabcabc})
 
-(test-report #:display? #t)
+(test-log #:display? #t)
 (exit)
