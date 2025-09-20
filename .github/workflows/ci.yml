@@ -25,7 +25,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
       - name: Install Racket
-        run: sudo apt-get install -y racket
+        run: sudo apt-get install -y racket xvfb
       - name: Run unit tests
         run: |
-          racket $GITHUB_WORKSPACE/tests/unit-tests.rkt
+          xvfb-run racket $GITHUB_WORKSPACE/tests/unit-tests.rkt
